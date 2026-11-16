@@ -143,7 +143,7 @@ Principer:
 - Svelte 5 inkopplat (`App.svelte`, `svelte-check` för typkontroll). ESLint täcker .ts/.js, `svelte-check` täcker .svelte.
 - Ingen git-commit och inget GitHub-repo ännu.
 
-- Repo: github.com/Jryolsn/piano. CI (lint, test, build) och GitHub Pages via `.github/workflows/ci.yml`.
+- Repo: github.com/Jryolsn/piano. Branchar och releaser beskrivs i README: PR:er mot `dev`, varje push till `dev` ger en prerelease med Android-APK och webbversion på `/Piano/dev/`. `main` är stabil på `/Piano/`.
 - Mikrofonspike, del 1: `spikes/mic/` visar ljudfiltrens status, rapporterad latens, nivå, spektrum och toppar som tonnamn. Sidan kan spela in guidade tagningar som WAV plus en `report.json`, för analys offline och som testdata. Ljudmodulerna `audio/mic.ts`, `audio/wav.ts`, `audio/pitch.ts` och `audio/spectrum.ts` har tester.
 
 - Övningsmotorn: `engine/practice.ts` (`PracticeSession`: vänteläge, tempoläge 25–150 %, seek, loop A–B, handval; drivs med `tick(dt)` utan timers) och `engine/steps.ts` (noter grupperas till steg/ackord). Detektorkoppling: `audio/spectral-detector.ts` (FFT-verifiering av förväntade toner, standardimplementation), `audio/practice-listener.ts` (debounce och krav på nytt anslag vid upprepad ton) och `createFrameSource` i `audio/mic.ts`. Gränsvärdena är preliminära och kalibreras mot spikeinspelningarna.
@@ -165,6 +165,7 @@ Principer:
 | 2026-11-16 | UI-ramverk: Svelte 5 för skärmar och paneler. Notvyn ritas på canvas utan ramverk. |
 | 2026-11-16 | GitHub Pages för testsidor (gratis, samma repo). Vercel kan övervägas senare för förhandsvisningar av PR. |
 | 2026-11-16 | Mikrofonspiken körs först i Chrome på Android via Pages, sedan i Capacitor. |
+| 2026-11-16 | Releaseflöde: `dev` för löpande prereleases (`vX.Y.Z-dev.N`), `main` för stabila releaser via tagg. APK:n byggs i CI med Capacitor, innehåller webbygget och fungerar offline. Webben på Pages: stabil på `/Piano/`, dev på `/Piano/dev/`. |
 | 2026-11-16 | Upphovsrättsraden i LICENSE är "PianoApp contributors" för att hålla personuppgifter utanför repot. |
 | 2026-11-16 | Standarddetektor: FFT-verifiering där en ton räknas som spelad om grundtonen, eller både 2:a och 3:e övertonen, sticker ut. Kan bytas efter spiken. |
 | 2026-11-16 | MIDI-import: händer från spårnamn (left/right, LH/RH, bass/treble), annars högsta av två spår = höger, ett enda spår delas vid mellan-C. Slagverk (kanal 10) ignoreras. |

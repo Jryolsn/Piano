@@ -11,6 +11,8 @@ license notice in those files.
 | Package | License |
 |---|---|
 | svelte (runtime, incl. clsx, esm-env, devalue) | MIT |
+| @capacitor/core, @capacitor/android | MIT |
+| AndroidX libraries (Android app only) | Apache-2.0 |
 | @tonejs/midi (incl. midi-file, array-flatten) | MIT |
 
 ## Development dependencies (not shipped)
@@ -26,10 +28,11 @@ license notice in those files.
 | @sveltejs/vite-plugin-svelte | MIT |
 | svelte-check | MIT |
 | @types/node | MIT |
+| @capacitor/cli | MIT |
 
-License audit of the full dev tree (2026-11-16): MIT, Apache-2.0, ISC, BSD-2/3-Clause and
-BlueOak-1.0.0, plus `lightningcss` (MPL-2.0), a build-time CSS tool pulled in by Vite. MPL-2.0 is
-file-level copyleft and only applies if its own files are modified or distributed; it is not bundled
+License audit of the full dev tree (2026-11-16): MIT, Apache-2.0, ISC, BSD-2/3-Clause,
+BlueOak-1.0.0 and Unlicense (via @capacitor/cli), plus `lightningcss` (MPL-2.0), a build-time CSS
+tool pulled in by Vite. MPL-2.0 is file-level copyleft and only applies if its own files are modified or distributed; it is not bundled
 into the app output.
 
 `npm audit` reports a prototype-poisoning advisory in `deepmerge`, used by the Svelte Vite plugin for
