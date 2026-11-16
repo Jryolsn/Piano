@@ -2,17 +2,14 @@
   import type { LibraryEntry } from './song/library';
   import { indexedDbStorage } from './song/storage';
   import LibraryScreen from './ui/library/LibraryScreen.svelte';
+  import PracticeScreen from './ui/practice/PracticeScreen.svelte';
 
   const storage = indexedDbStorage();
   let selected = $state<LibraryEntry>();
 </script>
 
 {#if selected}
-  <!-- Replaced by the practice screen. -->
-  <main class="placeholder">
-    <p>{selected.title}</p>
-    <button onclick={() => (selected = undefined)}>Tillbaka</button>
-  </main>
+  <PracticeScreen song={selected.song} onExit={() => (selected = undefined)} />
 {:else}
   <LibraryScreen {storage} onselect={(entry) => (selected = entry)} />
 {/if}
@@ -44,12 +41,5 @@
     background: var(--bg);
     color: var(--fg);
     font-family: system-ui, sans-serif;
-  }
-  .placeholder {
-    display: grid;
-    place-items: center;
-    align-content: center;
-    gap: 1rem;
-    min-height: 100dvh;
   }
 </style>

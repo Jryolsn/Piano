@@ -148,6 +148,8 @@ Principer:
 
 - Låtbibliotek: `song/midi.ts` (import med `@tonejs/midi`, händer från spårnamn eller tonhöjd), `song/notation.ts` (kompakt notation för inbyggda låtar), `song/builtin.ts` (8 fria låtar, svårighet 1–4), `song/library.ts` + `song/storage.ts` (importer sparas i IndexedDB), skärm i `ui/library/`.
 
+- Appflöde: biblioteket öppnar övningsskärmen, och tillbaka-knappen leder till biblioteket.
+
 **Nästa steg:** Jerry spelar in tagningarna på `/Piano/spikes/mic/` och laddar upp dem. Analysen jämför FFT-verifiering, `pitchy` och Basic Pitch på samma ljud. Sedan samma sida i en Capacitor-APK (del 2).
 
 ## Beslutslogg
