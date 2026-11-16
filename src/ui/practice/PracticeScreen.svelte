@@ -56,7 +56,11 @@
 
   function togglePlay() {
     if (session.playing) session.pause();
-    else session.play();
+    else {
+      // Wait mode needs to hear the piano, so start listening on the first play.
+      if (settings.mode === 'wait' && mic === 'off') void toggleMic();
+      session.play();
+    }
     playing = session.playing;
     if (playing) panelOpen = false;
   }
@@ -173,6 +177,7 @@
     </div>
 
     <button class="play" onclick={togglePlay} aria-label="Spela">▶</button>
+    <p class="title">{song.title}</p>
 
     {#if panelOpen}
       <div class="panel">
@@ -259,6 +264,21 @@
     font-size: 40px;
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
     cursor: pointer;
+  }
+  .title {
+    position: absolute;
+    left: 50%;
+    top: calc(42% + 64px);
+    transform: translateX(-50%);
+    margin: 0;
+    max-width: 90%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 17px;
+    color: #c9c7c2;
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+    pointer-events: none;
   }
   .time {
     flex: none;
