@@ -3,6 +3,7 @@ import { openMic } from '../../src/audio/mic';
 import { frequencyToMidi, midiToName } from '../../src/audio/pitch';
 import { findPeaks } from '../../src/audio/spectrum';
 import { encodeWav } from '../../src/audio/wav';
+import { keyboardSvg, zoomRange } from './keyboard';
 import { Recorder } from './recorder';
 import { TAKES } from './takes';
 
@@ -78,14 +79,19 @@ async function run(): Promise<void> {
 
 function setupRecording(ctx: AudioContext, recorder: Recorder, environment: object): void {
   const select = $<HTMLSelectElement>('take');
-  const instruction = $('instruction');
   const recButton = $<HTMLButtonElement>('rec');
   const status = $('recstatus');
   const recorded: Record<string, number> = {};
 
-  select.replaceChildren(...TAKES.map((t) => new Option(t.id, t.id)));
+  select.replaceChildren(...TAKES.map((t, i) => new Option(`${i + 1}/${TAKES.length}: ${t.title}`, t.id)));
   const showInstruction = () => {
-    instruction.textContent = TAKES.find((t) => t.id === select.value)?.instruction ?? '';
+    const take = TAKES.find((t) => t.id === select.value)!;
+    $('title').textContent = take.title;
+    $('steps').replaceChildren(
+      ...take.steps.map((text) => Object.assign(document.createElement('li'), { textContent: text })),
+    );
+    $('kbd-full').replaceChildren(keyboardSvg(take.keys));
+    $('kbd-zoom').replaceChildren(take.keys.length ? keyboardSvg(take.keys, ...zoomRange(take.keys)) : '');
   };
   select.addEventListener('change', showInstruction);
   showInstruction();
@@ -93,16 +99,19 @@ function setupRecording(ctx: AudioContext, recorder: Recorder, environment: obje
   recButton.addEventListener('click', () => {
     if (!recorder.isRecording) {
       recorder.start();
-      recButton.textContent = 'Stop';
-      status.textContent = `Recording ${select.value}…`;
+      recButton.textContent = 'Stopp';
+      status.textContent = 'Spelar in… tryck Stopp när du är klar.';
       return;
     }
     const samples = recorder.stop();
-    recButton.textContent = 'Record';
+    recButton.textContent = 'Spela in';
     recorded[select.value] = samples.length / ctx.sampleRate;
     download(`${select.value}.wav`, new Blob([encodeWav(samples, ctx.sampleRate)], { type: 'audio/wav' }));
-    status.textContent = `Saved ${select.value}.wav (${recorded[select.value]!.toFixed(1)} s)`;
-    if (select.selectedIndex < TAKES.length - 1) select.selectedIndex++;
+    const last = select.selectedIndex === TAKES.length - 1;
+    status.textContent = last
+      ? 'Klart! Tryck Ladda ner rapport och skicka alla filer.'
+      : `Sparad (${recorded[select.value]!.toFixed(1)} s). Nästa steg visas ovan.`;
+    if (!last) select.selectedIndex++;
     showInstruction();
   });
 

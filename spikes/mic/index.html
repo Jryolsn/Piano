@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="sv">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,6 +10,8 @@
       #notes { font-size: 40px; font-weight: 600; min-height: 56px; margin: 12px 0; }
       #level { height: 12px; background: #333; } #level > div { height: 100%; width: 0; background: #4caf50; }
       select { font-size: 16px; padding: 8px; max-width: 100%; }
+      .hint { margin: 8px 0 4px; font-size: 14px; color: #aaa; } ol { padding-left: 20px; } li { margin: 6px 0; }
+      #kbd-full svg { max-height: 40px; } #kbd-zoom svg { max-height: 120px; }
       canvas { width: 100%; height: 200px; background: #000; display: block; margin: 12px 0; }
       table { border-collapse: collapse; font-size: 14px; } td { padding: 2px 12px 2px 0; }
       .bad { color: #ff6b6b; } .good { color: #6bdc7a; }
@@ -17,17 +19,20 @@
   </head>
   <body>
     <h1>Mic spike</h1>
-    <button id="start">Start microphone</button>
+    <button id="start">Starta mikrofonen</button>
     <div id="notes"></div>
     <div id="level"><div></div></div>
     <canvas id="spectrum"></canvas>
     <section id="record" hidden>
-      <h2>Record</h2>
-      <p>Select a take, press Record, play, press Stop. The WAV file downloads automatically.</p>
+      <h2>Inspelning</h2>
       <select id="take"></select>
-      <p id="instruction"></p>
-      <button id="rec">Record</button>
-      <button id="report">Download report</button>
+      <h3 id="title"></h3>
+      <ol id="steps"></ol>
+      <p class="hint">Hela pianot (gult = tryck här):</p>
+      <div id="kbd-full"></div>
+      <p class="hint">Inzoomat:</p>
+      <div id="kbd-zoom"></div>
+      <p><button id="rec">Spela in</button> <button id="report">Ladda ner rapport</button></p>
       <p id="recstatus"></p>
     </section>
     <table id="info"></table>
