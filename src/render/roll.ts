@@ -12,11 +12,14 @@ export interface RollFrame {
   hands: readonly Hand[];
   /** MIDI numbers the player must play now (wait mode); emphasised on the keyboard. */
   expected?: readonly number[];
+  /** MIDI numbers currently pressed by the player (touch or detected). */
+  pressed?: readonly number[];
 }
 
 /** Share of the canvas height used by the keyboard. */
 const KEYBOARD_RATIO = 0.16;
 const MAX_KEYBOARD_PX = 160;
+const BLACK_KEY_RATIO = 0.62;
 const NOTE_RADIUS = 4;
 const NOTE_GAP = 1;
 
@@ -57,7 +60,7 @@ export class RollRenderer {
   draw(frame: RollFrame): void {
     const { ctx, cssWidth: w, cssHeight: h } = this;
     if (w === 0 || h === 0) return;
-    const keyboardHeight = Math.min(MAX_KEYBOARD_PX, h * KEYBOARD_RATIO);
+    const keyboardHeight = this.keyboardHeight();
     const hitY = h - keyboardHeight;
 
     ctx.fillStyle = theme.background;
@@ -65,6 +68,24 @@ export class RollRenderer {
     this.drawLanes(hitY);
     const sounding = this.drawNotes(frame, hitY);
     this.drawKeyboard(frame, hitY, keyboardHeight, sounding);
+  }
+
+  /** MIDI number of the keyboard key at a CSS-pixel point, or null outside the keyboard. */
+  keyAt(x: number, y: number): number | null {
+    const top = this.cssHeight - this.keyboardHeight();
+    if (y < top) return null;
+    const blackBottom = top + this.keyboardHeight() * BLACK_KEY_RATIO;
+    // Black keys sit on top, so they win where they overlap white keys.
+    for (let i = this.keys.length - 1; i >= 0; i--) {
+      const k = this.keys[i]!;
+      if (k.black && y > blackBottom) continue;
+      if (x >= k.x && x < k.x + k.width) return k.midi;
+    }
+    return null;
+  }
+
+  private keyboardHeight(): number {
+    return Math.min(MAX_KEYBOARD_PX, this.cssHeight * KEYBOARD_RATIO);
   }
 
   private relayout(): void {
@@ -123,7 +144,8 @@ export class RollRenderer {
       if (n.time - frame.time <= frame.lookahead) hint.set(n.midi, n.hand);
     }
     const expected = new Set(frame.expected ?? []);
-    const blackHeight = height * 0.62;
+    const pressed = new Set(frame.pressed ?? []);
+    const blackHeight = height * BLACK_KEY_RATIO;
 
     for (const k of this.keys) {
       const keyHeight = k.black ? blackHeight : height;
@@ -136,6 +158,10 @@ export class RollRenderer {
         ctx.fillStyle = theme.hand[hand].note;
         ctx.fillRect(k.x, top, k.width, keyHeight);
         ctx.globalAlpha = 1;
+      }
+      if (pressed.has(k.midi)) {
+        ctx.fillStyle = theme.pressed;
+        ctx.fillRect(k.x, top + keyHeight * 0.5, k.width, keyHeight * 0.5);
       }
       if (expected.has(k.midi)) {
         ctx.strokeStyle = theme.hand[hand ?? 'right'].active;
