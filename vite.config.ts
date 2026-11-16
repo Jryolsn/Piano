@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
-  // GitHub Pages serves the repo under /piano/.
+  // GitHub Pages serves the site under /<repo name>/, set by CI.
   base: process.env.BASE_PATH ?? '/',
   plugins: [svelte()],
   build: {
