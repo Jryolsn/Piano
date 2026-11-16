@@ -58,6 +58,7 @@
     if (session.playing) session.pause();
     else session.play();
     playing = session.playing;
+    if (playing) panelOpen = false;
   }
 
   function seek(to: number) {
@@ -133,53 +134,57 @@
 </script>
 
 <div class="screen">
-  <RollCanvas notes={song.notes} {frame} onKeyDown={keyDown} onKeyUp={keyUp} />
+  <RollCanvas notes={song.notes} {frame} onKeyDown={keyDown} onKeyUp={keyUp} onTap={() => playing && togglePlay()} />
 
-  <div class="bar" class:dim={playing && !panelOpen}>
-    {#if onExit}
-      <button class="icon" onclick={onExit} aria-label="Tillbaka">‹</button>
-    {/if}
-    <button class="icon play" onclick={togglePlay} aria-label={playing ? 'Pausa' : 'Spela'}>
-      {playing ? '❚❚' : '▶'}
-    </button>
-    <span class="time">{formatTime(time)}</span>
-    <input
-      class="seek"
-      type="range"
-      min="0"
-      max={song.duration}
-      step="0.01"
-      value={time}
-      oninput={(e) => seek(e.currentTarget.valueAsNumber)}
-      aria-label="Position i låten"
-    />
-    <span class="time">{formatTime(song.duration)}</span>
-    <button
-      class="icon mic"
-      class:on={mic === 'on'}
-      class:error={mic === 'error'}
-      onclick={toggleMic}
-      disabled={mic === 'starting'}
-      aria-label={mic === 'on' ? 'Stäng av mikrofonen' : 'Lyssna med mikrofonen'}
-      title={mic === 'error' ? 'Mikrofonen gick inte att starta' : undefined}
-    >
-      🎤
-    </button>
-    <button class="icon" class:on={panelOpen} onclick={() => (panelOpen = !panelOpen)} aria-label="Inställningar">
-      ⚙
-    </button>
-  </div>
-
-  {#if panelOpen}
-    <div class="panel">
-      <SettingsPanel
-        bind:settings
-        {loop}
-        onSetLoopStart={setLoopStart}
-        onSetLoopEnd={setLoopEnd}
-        onClearLoop={() => (loop = null)}
+  {#if playing}
+    <!-- While playing only the notes and keys are shown; tap anywhere above the keys to pause. -->
+    <button class="round pause" onclick={togglePlay} aria-label="Pausa">❚❚</button>
+  {:else}
+    <div class="bar">
+      {#if onExit}
+        <button class="round" onclick={onExit} aria-label="Tillbaka">‹</button>
+      {/if}
+      <span class="time">{formatTime(time)}</span>
+      <input
+        class="seek"
+        type="range"
+        min="0"
+        max={song.duration}
+        step="0.01"
+        value={time}
+        oninput={(e) => seek(e.currentTarget.valueAsNumber)}
+        aria-label="Position i låten"
       />
+      <span class="time">{formatTime(song.duration)}</span>
+      <button
+        class="round mic"
+        class:on={mic === 'on'}
+        class:error={mic === 'error'}
+        onclick={toggleMic}
+        disabled={mic === 'starting'}
+        aria-label={mic === 'on' ? 'Stäng av mikrofonen' : 'Lyssna med mikrofonen'}
+        title={mic === 'error' ? 'Mikrofonen gick inte att starta' : undefined}
+      >
+        🎤
+      </button>
+      <button class="round" class:on={panelOpen} onclick={() => (panelOpen = !panelOpen)} aria-label="Inställningar">
+        ⚙
+      </button>
     </div>
+
+    <button class="play" onclick={togglePlay} aria-label="Spela">▶</button>
+
+    {#if panelOpen}
+      <div class="panel">
+        <SettingsPanel
+          bind:settings
+          {loop}
+          onSetLoopStart={setLoopStart}
+          onSetLoopEnd={setLoopEnd}
+          onClearLoop={() => (loop = null)}
+        />
+      </div>
+    {/if}
   {/if}
 </div>
 
@@ -190,61 +195,70 @@
     background: #14171d;
     overflow: hidden;
     font-family: system-ui, sans-serif;
+    color: #d8d6d1;
     user-select: none;
     -webkit-user-select: none;
   }
   .bar {
     position: absolute;
-    top: max(8px, env(safe-area-inset-top));
-    left: max(8px, env(safe-area-inset-left));
-    right: max(8px, env(safe-area-inset-right));
+    top: max(10px, env(safe-area-inset-top));
+    left: max(10px, env(safe-area-inset-left));
+    right: max(10px, env(safe-area-inset-right));
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 6px 10px;
-    border-radius: 12px;
-    background: rgba(28, 31, 38, 0.7);
-    color: #d8d6d1;
-    font: 14px system-ui, sans-serif;
-    transition: opacity 0.4s;
+    gap: 12px;
+    padding: 6px;
+    border-radius: 16px;
+    background: rgba(28, 31, 38, 0.85);
+    font-size: 15px;
   }
-  /* Fade out while playing to keep the view calm; any interaction brings it back. */
-  .bar.dim {
-    opacity: 0.25;
-  }
-  .bar.dim:hover,
-  .bar.dim:focus-within {
-    opacity: 1;
-  }
-  .icon {
+  .round {
     flex: none;
-    width: 40px;
-    height: 40px;
+    width: 52px;
+    height: 52px;
     border: 0;
-    border-radius: 10px;
-    background: transparent;
+    border-radius: 50%;
+    background: #2a2e37;
     color: inherit;
-    font-size: 18px;
+    font-size: 22px;
     cursor: pointer;
   }
-  .icon:hover,
-  .icon.on {
-    background: #2a2e37;
+  .round.on {
+    background: #3d5f80;
+  }
+  .pause {
+    position: absolute;
+    top: max(10px, env(safe-area-inset-top));
+    right: max(10px, env(safe-area-inset-right));
+    font-size: 16px;
+    background: rgba(42, 46, 55, 0.6);
+    opacity: 0.5;
   }
   .mic {
     filter: grayscale(1);
-    opacity: 0.6;
   }
   .mic.on {
     filter: none;
-    opacity: 1;
     background: #2f4a3a;
   }
   .mic.error {
     background: #5a2e2e;
   }
   .play {
-    background: #2a2e37;
+    position: absolute;
+    left: 50%;
+    top: 42%;
+    transform: translate(-50%, -50%);
+    width: 96px;
+    height: 96px;
+    padding-left: 8px;
+    border: 0;
+    border-radius: 50%;
+    background: #5b9bd5;
+    color: #10131a;
+    font-size: 40px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
   }
   .time {
     flex: none;
@@ -254,13 +268,15 @@
   .seek {
     flex: 1;
     min-width: 0;
+    height: 32px;
     accent-color: #5b9bd5;
   }
   .panel {
     position: absolute;
-    top: calc(max(8px, env(safe-area-inset-top)) + 60px);
-    right: max(8px, env(safe-area-inset-right));
-    max-height: calc(100% - 80px);
+    top: calc(max(10px, env(safe-area-inset-top)) + 72px);
+    right: max(10px, env(safe-area-inset-right));
+    max-height: calc(100% - 92px);
     overflow-y: auto;
+    border-radius: 14px;
   }
 </style>
