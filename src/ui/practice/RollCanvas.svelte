@@ -9,16 +9,21 @@
     frame: (dt: number) => RollFrame;
     onKeyDown?: (midi: number) => void;
     onKeyUp?: (midi: number) => void;
+    /** Tap on the note area (above the keyboard). */
+    onTap?: () => void;
   }
 
-  let { notes, frame, onKeyDown, onKeyUp }: Props = $props();
+  let { notes, frame, onKeyDown, onKeyUp, onTap }: Props = $props();
   /** Key held by each active pointer, so multi-touch chords work. */
   const held = new Map<number, number>();
 
   function pointerDown(e: PointerEvent) {
     const rect = canvas.getBoundingClientRect();
     const midi = renderer?.keyAt(e.clientX - rect.left, e.clientY - rect.top);
-    if (midi == null) return;
+    if (midi == null) {
+      onTap?.();
+      return;
+    }
     canvas.setPointerCapture(e.pointerId);
     held.set(e.pointerId, midi);
     onKeyDown?.(midi);

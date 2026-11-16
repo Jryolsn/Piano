@@ -71,13 +71,13 @@
 <style>
   .panel {
     display: grid;
-    gap: 10px;
-    padding: 12px 14px;
-    min-width: 260px;
+    gap: 14px;
+    padding: 16px;
+    width: min(320px, calc(100vw - 20px));
     background: rgba(28, 31, 38, 0.96);
     border-radius: 12px;
     color: #d8d6d1;
-    font-size: 14px;
+    font-size: 15px;
   }
   fieldset {
     border: 0;
@@ -101,6 +101,7 @@
   }
   input[type='range'] {
     width: 100%;
+    height: 32px;
     accent-color: #5b9bd5;
   }
   .segmented {
@@ -109,7 +110,8 @@
   }
   .segmented button {
     flex: 1;
-    padding: 7px 6px;
+    min-height: 44px;
+    padding: 6px;
     border: 0;
     border-radius: 8px;
     background: #2a2e37;
