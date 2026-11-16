@@ -149,6 +149,8 @@ Principer:
 - Övningsmotorn: `engine/practice.ts` (`PracticeSession`: vänteläge, tempoläge 25–150 %, seek, loop A–B, handval; drivs med `tick(dt)` utan timers) och `engine/steps.ts` (noter grupperas till steg/ackord). Detektorkoppling: `audio/spectral-detector.ts` (FFT-verifiering av förväntade toner, standardimplementation), `audio/practice-listener.ts` (debounce och krav på nytt anslag vid upprepad ton) och `createFrameSource` i `audio/mic.ts`. Gränsvärdena är preliminära och kalibreras mot spikeinspelningarna.
 - Låtbibliotek: `song/midi.ts` (import med `@tonejs/midi`, händer från spårnamn eller tonhöjd), `song/notation.ts` (kompakt notation för inbyggda låtar), `song/builtin.ts` (8 fria låtar, svårighet 1–4), `song/library.ts` + `song/storage.ts` (importer sparas i IndexedDB), skärm i `ui/library/`.
 
+- Appflöde: biblioteket öppnar övningsskärmen, och tillbaka-knappen leder till biblioteket.
+
 **Nästa steg:** Jerry spelar in tagningarna på `/Piano/spikes/mic/` och laddar upp dem. Analysen jämför FFT-verifiering, `pitchy` och Basic Pitch på samma ljud. Sedan samma sida i en Capacitor-APK (del 2).
 
 ## Beslutslogg
