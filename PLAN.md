@@ -87,6 +87,7 @@ src/
   render/     roll.ts (fallande noter, framförhållning, keyboard)
   ui/         skärmar: bibliotek, övning, inställningar
   platform/   Capacitor-specifikt (behörigheter, skärm vaken)
+spikes/       tillfälliga experiment, en mapp per spike. Tas bort när beslutet är fattat.
 ```
 
 Principer:
@@ -142,7 +143,10 @@ Principer:
 - Svelte 5 inkopplat (`App.svelte`, `svelte-check` för typkontroll). ESLint täcker .ts/.js, `svelte-check` täcker .svelte.
 - Ingen git-commit och inget GitHub-repo ännu.
 
-**Nästa steg:** skapa GitHub-repo, sedan spike för mikrofonen i Capacitor på Android.
+- Repo: github.com/Jryolsn/piano. CI (lint, test, build) och GitHub Pages via `.github/workflows/ci.yml`.
+- Mikrofonspike, del 1: `spikes/mic/` visar ljudfiltrens status, rapporterad latens, nivå, spektrum och toppar som tonnamn. Ljudmodulerna `audio/mic.ts`, `audio/pitch.ts` och `audio/spectrum.ts` har tester.
+
+**Nästa steg:** Jerry testar `/piano/spikes/mic/` i Chrome på Android med riktigt piano. Sedan samma sida i en Capacitor-APK (del 2).
 
 ## Beslutslogg
 
@@ -154,4 +158,6 @@ Principer:
 | 2026-11-16 | TypeScript 6 i stället för 7, eftersom typescript-eslint ännu inte stöder 7. Uppgraderas när stödet finns. |
 | 2026-11-16 | `lightningcss` (MPL-2.0) accepteras som byggberoende via Vite. Det följer inte med i appen. |
 | 2026-11-16 | UI-ramverk: Svelte 5 för skärmar och paneler. Notvyn ritas på canvas utan ramverk. |
+| 2026-11-16 | GitHub Pages för testsidor (gratis, samma repo). Vercel kan övervägas senare för förhandsvisningar av PR. |
+| 2026-11-16 | Mikrofonspiken körs först i Chrome på Android via Pages, sedan i Capacitor. |
 | 2026-11-16 | Upphovsrättsraden i LICENSE är "PianoApp contributors" för att hålla personuppgifter utanför repot. |

@@ -24,6 +24,7 @@ license notice in those files.
 | globals | MIT |
 | @sveltejs/vite-plugin-svelte | MIT |
 | svelte-check | MIT |
+| @types/node | MIT |
 
 License audit of the full dev tree (2026-11-16): MIT, Apache-2.0, ISC, BSD-2/3-Clause and
 BlueOak-1.0.0, plus `lightningcss` (MPL-2.0), a build-time CSS tool pulled in by Vite. MPL-2.0 is
