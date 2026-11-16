@@ -1,16 +1,55 @@
 <script lang="ts">
-  const title = 'PianoApp';
+  import type { LibraryEntry } from './song/library';
+  import { indexedDbStorage } from './song/storage';
+  import LibraryScreen from './ui/library/LibraryScreen.svelte';
+
+  const storage = indexedDbStorage();
+  let selected = $state<LibraryEntry>();
 </script>
 
-<main>
-  <h1>{title}</h1>
-</main>
+{#if selected}
+  <!-- Replaced by the practice screen. -->
+  <main class="placeholder">
+    <p>{selected.title}</p>
+    <button onclick={() => (selected = undefined)}>Tillbaka</button>
+  </main>
+{:else}
+  <LibraryScreen {storage} onselect={(entry) => (selected = entry)} />
+{/if}
 
 <style>
-  main {
+  :global(:root) {
+    --bg: #fbfaf7;
+    --fg: #1f2328;
+    --muted: #6b7078;
+    --line: #e4e1da;
+    --accent: #3b6e8f;
+    --on-accent: #fff;
+    --danger: #b3412e;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :global(:root) {
+      --bg: #16181b;
+      --fg: #e8e6e1;
+      --muted: #8d939b;
+      --line: #2c3036;
+      --accent: #7fb0cf;
+      --on-accent: #10161a;
+      --danger: #e07a66;
+    }
+  }
+  :global(body) {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: system-ui, sans-serif;
+  }
+  .placeholder {
     display: grid;
     place-items: center;
+    align-content: center;
+    gap: 1rem;
     min-height: 100dvh;
-    font-family: system-ui, sans-serif;
   }
 </style>

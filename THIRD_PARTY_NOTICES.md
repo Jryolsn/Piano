@@ -11,6 +11,7 @@ license notice in those files.
 | Package | License |
 |---|---|
 | svelte (runtime, incl. clsx, esm-env, devalue) | MIT |
+| @tonejs/midi (incl. midi-file, array-flatten) | MIT |
 
 ## Development dependencies (not shipped)
 
@@ -36,4 +37,5 @@ build config only. No fix is available yet; it does not ship in the app.
 
 ## Assets
 
-None yet. Songs must be public-domain works in own or freely licensed arrangements.
+Built-in songs (`src/song/builtin.ts`) are public-domain melodies (traditional, Beethoven, Petzold,
+Pierpont) in the project's own simple arrangements, under the project's MIT license.
