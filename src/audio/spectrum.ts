@@ -32,7 +32,7 @@ export function findPeaks(
   return peaks.sort((x, y) => y.db - x.db).slice(0, maxPeaks);
 }
 
-function median(values: Float32Array): number {
+export function median(values: Float32Array): number {
   const sorted = Float32Array.from(values).sort();
   return sorted[sorted.length >> 1] ?? -Infinity;
 }
