@@ -144,9 +144,9 @@ Principer:
 - Ingen git-commit och inget GitHub-repo ännu.
 
 - Repo: github.com/Jryolsn/piano. CI (lint, test, build) och GitHub Pages via `.github/workflows/ci.yml`.
-- Mikrofonspike, del 1: `spikes/mic/` visar ljudfiltrens status, rapporterad latens, nivå, spektrum och toppar som tonnamn. Ljudmodulerna `audio/mic.ts`, `audio/pitch.ts` och `audio/spectrum.ts` har tester.
+- Mikrofonspike, del 1: `spikes/mic/` visar ljudfiltrens status, rapporterad latens, nivå, spektrum och toppar som tonnamn. Sidan kan spela in guidade tagningar som WAV plus en `report.json`, för analys offline och som testdata. Ljudmodulerna `audio/mic.ts`, `audio/wav.ts`, `audio/pitch.ts` och `audio/spectrum.ts` har tester.
 
-**Nästa steg:** Jerry testar `/Piano/spikes/mic/` i Chrome på Android med riktigt piano. Sedan samma sida i en Capacitor-APK (del 2).
+**Nästa steg:** Jerry spelar in tagningarna på `/Piano/spikes/mic/` och laddar upp dem. Analysen jämför FFT-verifiering, `pitchy` och Basic Pitch på samma ljud. Sedan samma sida i en Capacitor-APK (del 2).
 
 ## Beslutslogg
 

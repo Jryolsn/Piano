@@ -2,6 +2,9 @@
 import { openMic } from '../../src/audio/mic';
 import { frequencyToMidi, midiToName } from '../../src/audio/pitch';
 import { findPeaks } from '../../src/audio/spectrum';
+import { encodeWav } from '../../src/audio/wav';
+import { Recorder } from './recorder';
+import { TAKES } from './takes';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const startButton = $<HTMLButtonElement>('start');
@@ -34,6 +37,13 @@ async function run(): Promise<void> {
 
   const track = stream.getAudioTracks()[0]!;
   const s = track.getSettings() as MediaTrackSettings & { latency?: number };
+  setupRecording(ctx, await Recorder.create(ctx, source), {
+    settings: s,
+    sampleRate: ctx.sampleRate,
+    baseLatency: ctx.baseLatency,
+    outputLatency: ctx.outputLatency,
+    userAgent: navigator.userAgent,
+  });
   const off = (label: string, v: unknown): Row => [label, v === false ? 'off' : String(v), v === false];
   showInfo([
     off('Echo cancellation', s.echoCancellation),
@@ -64,6 +74,50 @@ async function run(): Promise<void> {
     requestAnimationFrame(draw);
   };
   draw();
+}
+
+function setupRecording(ctx: AudioContext, recorder: Recorder, environment: object): void {
+  const select = $<HTMLSelectElement>('take');
+  const instruction = $('instruction');
+  const recButton = $<HTMLButtonElement>('rec');
+  const status = $('recstatus');
+  const recorded: Record<string, number> = {};
+
+  select.replaceChildren(...TAKES.map((t) => new Option(t.id, t.id)));
+  const showInstruction = () => {
+    instruction.textContent = TAKES.find((t) => t.id === select.value)?.instruction ?? '';
+  };
+  select.addEventListener('change', showInstruction);
+  showInstruction();
+
+  recButton.addEventListener('click', () => {
+    if (!recorder.isRecording) {
+      recorder.start();
+      recButton.textContent = 'Stop';
+      status.textContent = `Recording ${select.value}…`;
+      return;
+    }
+    const samples = recorder.stop();
+    recButton.textContent = 'Record';
+    recorded[select.value] = samples.length / ctx.sampleRate;
+    download(`${select.value}.wav`, new Blob([encodeWav(samples, ctx.sampleRate)], { type: 'audio/wav' }));
+    status.textContent = `Saved ${select.value}.wav (${recorded[select.value]!.toFixed(1)} s)`;
+    if (select.selectedIndex < TAKES.length - 1) select.selectedIndex++;
+    showInstruction();
+  });
+
+  $('report').addEventListener('click', () => {
+    const report = { createdAt: new Date().toISOString(), environment, takes: TAKES, recorded };
+    download('report.json', new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' }));
+  });
+
+  $('record').hidden = false;
+}
+
+function download(name: string, blob: Blob): void {
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: name });
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
 function drawSpectrum(spectrum: Float32Array, sampleRate: number): void {
