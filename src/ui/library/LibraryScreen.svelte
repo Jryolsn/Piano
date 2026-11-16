@@ -14,7 +14,16 @@
   }
   const { storage, onselect }: Props = $props();
 
+  const LEVELS = [
+    { name: 'Lätt', test: (d: number) => d <= 1 },
+    { name: 'Lite svårare', test: (d: number) => d === 2 },
+    { name: 'Utmaning', test: (d: number) => d >= 3 },
+  ];
   const builtin = builtinEntries();
+  const levels = LEVELS.map((l) => ({
+    name: l.name,
+    entries: builtin.filter((e) => l.test(e.difficulty ?? 1)),
+  })).filter((l) => l.entries.length);
   let imported = $state<LibraryEntry[]>([]);
   let error = $state('');
   let confirmDelete = $state<string>();
@@ -50,10 +59,11 @@
   }
 
   function meta(entry: LibraryEntry): string {
+    const hands = new Set(entry.song.notes.map((n) => n.hand));
+    const handText =
+      hands.size === 2 ? 'Båda händerna' : hands.has('left') ? 'Vänster hand' : 'Höger hand';
     const s = Math.round(entry.song.duration);
-    const parts = [entry.composer, `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`];
-    if (!entry.song.notes.some((n) => n.hand === 'left')) parts.push('bara höger hand');
-    return parts.filter(Boolean).join(' · ');
+    return `${handText} · ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   }
 </script>
 
@@ -62,11 +72,6 @@
     <button class="song" onclick={() => onselect(entry)}>
       <span class="title">{entry.title}</span>
       <span class="meta">{meta(entry)}</span>
-      {#if entry.difficulty}
-        <span class="level" aria-label="Svårighet {entry.difficulty} av 5">
-          {#each [1, 2, 3, 4, 5] as d (d)}<i class:on={d <= entry.difficulty}></i>{/each}
-        </span>
-      {/if}
     </button>
     {#if entry.source === 'imported'}
       {#if confirmDelete === entry.id}
@@ -81,20 +86,7 @@
 {/snippet}
 
 <section>
-  <header>
-    <h1>Låtar</h1>
-    <button class="import" onclick={() => fileInput.click()}>Importera MIDI</button>
-    <input
-      bind:this={fileInput}
-      type="file"
-      accept=".mid,.midi,audio/midi,audio/x-midi"
-      multiple
-      hidden
-      onchange={(e) => onFiles(e.currentTarget.files)}
-    />
-  </header>
-
-  {#if error}<p class="error" role="alert">{error}</p>{/if}
+  <h1>Välj en låt</h1>
 
   {#if imported.length}
     <h2>Mina låtar</h2>
@@ -103,45 +95,56 @@
     </ul>
   {/if}
 
-  <h2>Inbyggda</h2>
-  <ul>
-    {#each builtin as entry (entry.id)}{@render row(entry)}{/each}
-  </ul>
+  {#each levels as level (level.name)}
+    <h2>{level.name}</h2>
+    <ul>
+      {#each level.entries as entry (entry.id)}{@render row(entry)}{/each}
+    </ul>
+  {/each}
+
+  {#if error}<p class="error" role="alert">{error}</p>{/if}
+  <button class="import" onclick={() => fileInput.click()}>+ Lägg till egen låt (MIDI-fil)</button>
+  <input
+    bind:this={fileInput}
+    type="file"
+    accept=".mid,.midi,audio/midi,audio/x-midi"
+    multiple
+    hidden
+    onchange={(e) => onFiles(e.currentTarget.files)}
+  />
 </section>
 
 <style>
   section {
-    max-width: 40rem;
+    max-width: 44rem;
     margin: 0 auto;
-    padding: 1.5rem 1rem 3rem;
-  }
-  header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
+    padding: max(2rem, env(safe-area-inset-top)) 1rem 3rem;
   }
   h1 {
-    margin: 0;
-    font-size: 1.75rem;
+    margin: 0 0 0.5rem;
+    font-size: 2rem;
     font-weight: 600;
   }
   h2 {
-    margin: 2rem 0 0.5rem;
-    font-size: 0.85rem;
+    margin: 1.75rem 0 0.6rem;
+    font-size: 1rem;
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
     color: var(--muted);
   }
   ul {
     list-style: none;
     margin: 0;
     padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+    gap: 0.6rem;
   }
   li {
     display: flex;
-    border-bottom: 1px solid var(--line);
+    min-height: 4.5rem;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--card);
   }
   button {
     font: inherit;
@@ -152,47 +155,40 @@
   }
   .song {
     flex: 1;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 0.15rem 1rem;
-    padding: 0.9rem 0.25rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.2rem;
+    padding: 0.8rem 1rem;
     text-align: left;
+    border-radius: 14px;
   }
-  .song:hover .title {
+  .song:hover .title,
+  .song:focus-visible .title {
     color: var(--accent);
   }
   .title {
-    font-size: 1.05rem;
+    font-size: 1.15rem;
+    font-weight: 500;
   }
   .meta {
-    grid-row: 2;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     color: var(--muted);
   }
-  .level {
-    grid-row: 1 / 3;
-    grid-column: 2;
-    align-self: center;
-    display: flex;
-    gap: 3px;
-  }
-  .level i {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--line);
-  }
-  .level i.on {
-    background: var(--accent);
-  }
   .import {
-    padding: 0.5rem 1rem;
-    border-radius: 999px;
-    background: var(--accent);
-    color: var(--on-accent);
+    margin-top: 2rem;
+    padding: 0.9rem 1.25rem;
+    border: 1px dashed var(--line);
+    border-radius: 14px;
+    width: 100%;
+    color: var(--muted);
+  }
+  .import:hover {
+    color: var(--accent);
+    border-color: var(--accent);
   }
   .delete {
-    padding: 0 0.75rem;
+    padding: 0 1rem;
     color: var(--muted);
   }
   .delete.confirm {

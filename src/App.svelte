@@ -20,6 +20,7 @@
     --fg: #1f2328;
     --muted: #6b7078;
     --line: #e4e1da;
+    --card: #fff;
     --accent: #3b6e8f;
     --on-accent: #fff;
     --danger: #b3412e;
@@ -31,6 +32,7 @@
       --fg: #e8e6e1;
       --muted: #8d939b;
       --line: #2c3036;
+      --card: #1d2024;
       --accent: #7fb0cf;
       --on-accent: #10161a;
       --danger: #e07a66;
