@@ -1,0 +1,86 @@
+name: Release
+
+# Pushes to dev publish a prerelease (vX.Y.Z-dev.N).
+# Pushing a tag vX.Y.Z on main publishes a stable release; it must match package.json.
+on:
+  push:
+    branches: [dev]
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  KEEP_DEV_RELEASES: 10
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Resolve version
+        id: version
+        run: |
+          base=$(node -p "require('./package.json').version")
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            version="${GITHUB_REF_NAME#v}"
+            if [[ "$version" != "$base" ]]; then
+              echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $base"
+              exit 1
+            fi
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          else
+            version="$base-dev.$GITHUB_RUN_NUMBER"
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - run: npx cap sync android
+
+      - name: Build APK
+        working-directory: android
+        run: >
+          ./gradlew assembleDebug --no-daemon
+          -PversionCode=${{ github.run_number }}
+          -PversionName=${{ steps.version.outputs.version }}
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
+        run: |
+          apk="pianoapp-$VERSION.apk"
+          mv android/app/build/outputs/apk/debug/app-debug.apk "$apk"
+          flags=()
+          if [[ "$PRERELEASE" == true ]]; then flags+=(--prerelease); fi
+          gh release create "v$VERSION" "$apk" \
+            --target "$GITHUB_SHA" --title "v$VERSION" --generate-notes "${flags[@]}"
+
+      - name: Prune old dev releases
+        if: steps.version.outputs.prerelease == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release list --limit 200 --json tagName,isPrerelease \
+            --jq '.[] | select(.isPrerelease and (.tagName | test("-dev\\."))) | .tagName' \
+            | tail -n +$((KEEP_DEV_RELEASES + 1)) \
+            | xargs -r -n1 gh release delete --cleanup-tag --yes

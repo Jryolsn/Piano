@@ -1,6 +1,6 @@
 {
   "name": "pianoapp",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Free, open-source piano learning app",
   "scripts": {
     "dev": "vite",
@@ -9,10 +9,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
-    "typecheck": "svelte-check --tsconfig ./tsconfig.json"
+    "typecheck": "svelte-check --tsconfig ./tsconfig.json",
+    "android": "npm run build && cap sync android && cap open android"
   },
   "license": "MIT",
   "devDependencies": {
+    "@capacitor/cli": "^8.6.2",
     "@eslint/js": "^10.0.1",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@types/node": "^26.6.6",
@@ -29,5 +31,9 @@
   "type": "module",
   "engines": {
     "node": ">=20.19"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/core": "^8.6.2"
   }
 }
