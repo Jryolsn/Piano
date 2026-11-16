@@ -143,7 +143,7 @@ Principer:
 - Svelte 5 inkopplat (`App.svelte`, `svelte-check` för typkontroll). ESLint täcker .ts/.js, `svelte-check` täcker .svelte.
 - Ingen git-commit och inget GitHub-repo ännu.
 
-- Repo: github.com/Jryolsn/piano. CI (lint, test, build) och GitHub Pages via `.github/workflows/ci.yml`.
+- Repo: github.com/Jryolsn/piano. Branchar och releaser beskrivs i README: PR:er mot `dev`, varje push till `dev` ger en prerelease med Android-APK och webbversion på `/Piano/dev/`. `main` är stabil på `/Piano/`.
 - Mikrofonspike, del 1: `spikes/mic/` visar ljudfiltrens status, rapporterad latens, nivå, spektrum och toppar som tonnamn. Sidan kan spela in guidade tagningar som WAV plus en `report.json`, för analys offline och som testdata. Ljudmodulerna `audio/mic.ts`, `audio/wav.ts`, `audio/pitch.ts` och `audio/spectrum.ts` har tester.
 
 **Nästa steg:** Jerry spelar in tagningarna på `/Piano/spikes/mic/` och laddar upp dem. Analysen jämför FFT-verifiering, `pitchy` och Basic Pitch på samma ljud. Sedan samma sida i en Capacitor-APK (del 2).
@@ -160,4 +160,5 @@ Principer:
 | 2026-11-16 | UI-ramverk: Svelte 5 för skärmar och paneler. Notvyn ritas på canvas utan ramverk. |
 | 2026-11-16 | GitHub Pages för testsidor (gratis, samma repo). Vercel kan övervägas senare för förhandsvisningar av PR. |
 | 2026-11-16 | Mikrofonspiken körs först i Chrome på Android via Pages, sedan i Capacitor. |
+| 2026-11-16 | Releaseflöde: `dev` för löpande prereleases (`vX.Y.Z-dev.N`), `main` för stabila releaser via tagg. APK:n byggs i CI med Capacitor, innehåller webbygget och fungerar offline. Webben på Pages: stabil på `/Piano/`, dev på `/Piano/dev/`. |
 | 2026-11-16 | Upphovsrättsraden i LICENSE är "PianoApp contributors" för att hålla personuppgifter utanför repot. |

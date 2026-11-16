@@ -10,6 +10,14 @@ Read `PLAN.md` first: goals, tech stack, phases, status and decision log. Update
 ## Stack
 TypeScript + Vite + Svelte 5, packaged with Capacitor. Tests with Vitest. The falling-note view renders to canvas, not Svelte.
 
+## Branches and releases
+Feature PRs target `dev`. Pushes to `dev` publish a prerelease (`vX.Y.Z-dev.N`, debug APK) and the
+dev web build at `/Piano/dev/`. `main` is stable; a `vX.Y.Z` tag matching `package.json` publishes a
+stable release. Workflows: `.github/workflows/` (`ci`, `release`, `pages`). Details in `README.md`.
+
+The Android project in `android/` is committed (Capacitor convention). Native changes such as
+permissions go there; web assets are copied in by `cap sync` and not committed.
+
 ## Rules
 - Clean, conventional, best-practice structure. No clutter: no stray files, dead code or speculative abstractions. Code must always be easy to find: one clear place per concern, following the module layout in `PLAN.md`.
 - License: MIT. Only add dependencies with permissive licenses (MIT/BSD/Apache-2.0); verify before adding.
