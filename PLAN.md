@@ -105,7 +105,7 @@ Principer:
 - [ ] Beslut om detekteringsmetod → beslutslogg
 
 ### Fas 1 – Kärnan (MVP)
-- [ ] Låtmodell och MIDI-import (händer från spår eller kanaler, tempoändringar)
+- [x] Låtmodell och MIDI-import (händer från spår eller kanaler, tempoändringar)
 - [ ] Övningsmotor: vänta, tempo, seek, loop, val av hand, med tester
 - [ ] Notvy: fallande noter, inställbar framförhållning, mjuk rullning i 60 fps, keyboard längst ner med markering av nästa toner
 - [ ] Detektor kopplad till motorn
@@ -113,7 +113,7 @@ Principer:
 
 ### Fas 2 – Låtar och Android
 - [ ] Inbyggt bibliotek med cirka 15–30 fria låtar i stigande svårighetsgrad
-- [ ] Bibliotekskärm och import av egna filer
+- [x] Bibliotekskärm och import av egna filer
 - [ ] Capacitor-bygge av APK och test på telefon och surfplatta (liggande läge, skärmen hålls vaken)
 
 ### Fas 3 – Förfining
@@ -146,6 +146,8 @@ Principer:
 - Repo: github.com/Jryolsn/piano. CI (lint, test, build) och GitHub Pages via `.github/workflows/ci.yml`.
 - Mikrofonspike, del 1: `spikes/mic/` visar ljudfiltrens status, rapporterad latens, nivå, spektrum och toppar som tonnamn. Sidan kan spela in guidade tagningar som WAV plus en `report.json`, för analys offline och som testdata. Ljudmodulerna `audio/mic.ts`, `audio/wav.ts`, `audio/pitch.ts` och `audio/spectrum.ts` har tester.
 
+- Låtbibliotek: `song/midi.ts` (import med `@tonejs/midi`, händer från spårnamn eller tonhöjd), `song/notation.ts` (kompakt notation för inbyggda låtar), `song/builtin.ts` (8 fria låtar, svårighet 1–4), `song/library.ts` + `song/storage.ts` (importer sparas i IndexedDB), skärm i `ui/library/`.
+
 **Nästa steg:** Jerry spelar in tagningarna på `/Piano/spikes/mic/` och laddar upp dem. Analysen jämför FFT-verifiering, `pitchy` och Basic Pitch på samma ljud. Sedan samma sida i en Capacitor-APK (del 2).
 
 ## Beslutslogg
@@ -161,3 +163,5 @@ Principer:
 | 2026-11-16 | GitHub Pages för testsidor (gratis, samma repo). Vercel kan övervägas senare för förhandsvisningar av PR. |
 | 2026-11-16 | Mikrofonspiken körs först i Chrome på Android via Pages, sedan i Capacitor. |
 | 2026-11-16 | Upphovsrättsraden i LICENSE är "PianoApp contributors" för att hålla personuppgifter utanför repot. |
+| 2026-11-16 | MIDI-import: händer från spårnamn (left/right, LH/RH, bass/treble), annars högsta av två spår = höger, ett enda spår delas vid mellan-C. Slagverk (kanal 10) ignoreras. |
+| 2026-11-16 | Importerade låtar sparas lokalt i IndexedDB som tolkad `Song`, inte som rå MIDI. Inbyggda låtar skrivs i egen textnotation i koden. |
