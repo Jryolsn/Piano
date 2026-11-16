@@ -10,6 +10,7 @@ export const theme = {
   blackKey: '#23262d',
   keyBorder: '#9a9894',
   keyLabel: '#8a8781',
+  pressed: 'rgba(120, 200, 140, 0.8)',
   hand: {
     right: { note: '#5b9bd5', active: '#8cc0f0' },
     left: { note: '#e0a458', active: '#f5c88a' },
