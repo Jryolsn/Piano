@@ -1,5 +1,8 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
+  import { createFrameSource, openMic, type FrameSource } from '../../audio/mic';
+  import { PracticeListener } from '../../audio/practice-listener';
+  import { SpectralDetector } from '../../audio/spectral-detector';
   import { PracticeSession, type LoopRange } from '../../engine/practice';
   import type { RollFrame } from '../../render/roll';
   import type { Song } from '../../song/model';
@@ -20,6 +23,9 @@
   let time = $state(0);
   let playing = $state(false);
   let pressed = $state<number[]>([]);
+  let mic = $state<'off' | 'starting' | 'on' | 'error'>('off');
+  let micSource: FrameSource | null = null;
+  const listener = new PracticeListener(new SpectralDetector());
 
   const session = $derived(new PracticeSession(song));
 
@@ -30,11 +36,13 @@
       hands: handsFor(settings.hand),
       loop,
     });
+    listener.reset();
   });
 
   function frame(dt: number): RollFrame {
     const s = untrack(() => session);
     s.tick(dt);
+    if (micSource) listener.process(micSource.read(), micSource.sampleRate, s);
     time = s.time;
     playing = s.playing;
     return {
@@ -55,6 +63,26 @@
   function seek(to: number) {
     session.seek(Math.min(song.duration, Math.max(0, to)));
     time = session.time;
+    listener.reset();
+  }
+
+  /** Must run from a user gesture: browsers only allow audio and mic access then. */
+  async function toggleMic() {
+    if (micSource) {
+      const src = micSource;
+      micSource = null;
+      mic = 'off';
+      await src.close();
+      return;
+    }
+    mic = 'starting';
+    try {
+      micSource = createFrameSource(await openMic());
+      listener.reset();
+      mic = 'on';
+    } catch {
+      mic = 'error';
+    }
   }
 
   /** Keys tapped recently count together, so chords can be tapped one key at a time with a mouse. */
@@ -98,6 +126,8 @@
     return () => {
       window.removeEventListener('keydown', onKey);
       session.pause();
+      void micSource?.close();
+      micSource = null;
     };
   });
 </script>
@@ -124,6 +154,17 @@
       aria-label="Position i låten"
     />
     <span class="time">{formatTime(song.duration)}</span>
+    <button
+      class="icon mic"
+      class:on={mic === 'on'}
+      class:error={mic === 'error'}
+      onclick={toggleMic}
+      disabled={mic === 'starting'}
+      aria-label={mic === 'on' ? 'Stäng av mikrofonen' : 'Lyssna med mikrofonen'}
+      title={mic === 'error' ? 'Mikrofonen gick inte att starta' : undefined}
+    >
+      🎤
+    </button>
     <button class="icon" class:on={panelOpen} onclick={() => (panelOpen = !panelOpen)} aria-label="Inställningar">
       ⚙
     </button>
@@ -189,6 +230,18 @@
   .icon:hover,
   .icon.on {
     background: #2a2e37;
+  }
+  .mic {
+    filter: grayscale(1);
+    opacity: 0.6;
+  }
+  .mic.on {
+    filter: none;
+    opacity: 1;
+    background: #2f4a3a;
+  }
+  .mic.error {
+    background: #5a2e2e;
   }
   .play {
     background: #2a2e37;
