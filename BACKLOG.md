@@ -17,4 +17,3 @@ Så används filen:
 
 ## Idéer
 
-- 2026-11-21 — Tre låtlägen: Spela med, Spela och lyssna, Vänta på mig (utkast i en egen tråd).

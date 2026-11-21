@@ -12,9 +12,11 @@ En gratis app med öppen källkod för att lära sig spela piano, i stil med Art
 
 1. **Låtbibliotek** med inbyggda låtar och import av egna MIDI-filer.
 2. **Lugn notvy** med fallande noter (piano roll) och lång, inställbar framförhållning (antal sekunder framåt). Vyn ska vara mjuk och avskalad, med minimalt UI medan man spelar.
-3. **Två lägen:**
-   - *Vänta:* låten står still tills rätt ton eller ackord spelas.
-   - *Tempo:* noterna rullar i låtens verkliga tempo, som går att justera (till exempel 25–150 %).
+3. **Tre låtlägen** (se *Låtlägen* nedan):
+   - *Spela med:* noterna rullar i tempo, mikrofonen används inte.
+   - *Spela och lyssna:* noterna rullar i tempo, appen lyssnar och visar vad som träffades, utan att stanna.
+   - *Vänta på mig:* låten står still tills rätt ton eller ackord spelas.
+   - Tempot går att justera (25–150 %) i alla lägen.
 4. **Spolning:** dra bakåt och framåt i låten och fortsätt därifrån. Det ska också gå att loopa ett avsnitt.
 5. **Träffsäker mikrofondetektering**, även för ackord.
 6. **Välja hand:** öva vänster, höger eller båda händerna.
@@ -95,6 +97,25 @@ Principer:
 - Detektorn får ett gränssnitt (`expected notes → match/no match + confidence`) så att flera implementationer kan bytas och jämföras.
 - Spara inspelade testljud från riktigt piano och mobilmikrofon i `test/fixtures/` för regressionstester av detekteringen.
 
+## Låtlägen (2026-11-21)
+
+**Val av läge (UX):**
+- När en låt öppnas, och varje gång den står stilla i början, visas tre stora knappar med text och en enkel ikon: *Spela med*, *Spela och lyssna*, *Vänta på mig*. Ett tryck startar låten i det läget.
+- Valet sparas och är förvalt nästa gång. Under spelning syns bara noterna och tangenterna. Läget kan bytas i den infällda inställningspanelen.
+- Lägena med mikrofon frågar om behörighet vid första start. Nekas den visas en kort rad och låten går i *Spela med*.
+- Standard för nya användare: *Vänta på mig*, eftersom det är lättast att lära sig en låt så.
+
+**Återkoppling i *Spela och lyssna*:** en träffad ton lyser grönt på tangenten och noten blir fylld. En missad ton bleknar när den passerat linjen, utan rött och utan ljud. När låten är slut visas en enda rad, till exempel "12 av 15 rätt", med knapparna *Igen* och *Tillbaka*.
+
+**Motor (`engine/`):**
+- `PracticeMode` behålls som tidslogik: `wait` eller `flow` (byter namn från `tempo`, som var förvirrande när tempot gäller alla lägen).
+- Nytt `listening: boolean` i `PracticeOptions`. UI-lägena mappas så här: *Spela med* = `flow` + av, *Spela och lyssna* = `flow` + på, *Vänta på mig* = `wait` + på.
+- Ny `StepResult = 'pending' | 'hit' | 'missed'` per steg. `reportMatch()` sätter `hit`, och ett steg som passerar sent-fönstret i `flow` med `listening` sätter `missed`. `seek`, loop-varv och byte av hand nollställer resultaten från positionen och framåt.
+- `results()` och `summary()` (träffade / totalt) för notvyn och slutraden. Allt testas med fake clock.
+- Ljudsidan ändras inte: `PracticeListener` driver motorn via `PracticeTarget`, och detektorn bakom `Detector`-gränssnittet kan bytas. Mikrofonen startas av UI:t bara när `listening` är på.
+
+**Senare:** visa *vilken* fel ton som spelades. Det kräver transkription, inte bara verifiering, och väntar på detektorarbetet (`pitchy` för enstaka toner är en kandidat).
+
 ## Faser
 
 ### Fas 0 – Grund och riskspikes
@@ -154,6 +175,7 @@ Principer:
 - Övningsläget använder nu `FftVerifier` med en brusgräns som anpassar sig till rummet. `SpectralDetector` är borttagen.
 
 - Repot är förberett för att växla mellan Claude-appen, Claude Code, andra AI-verktyg och manuell kodning i en IDE (2026-11-21): `AGENT.md` (läses av Claude Code via `CLAUDE.md`), `BACKLOG.md` för idéer och saker att fixa, `dev-tickets/` för planer per arbete, `.editorconfig`, `.nvmrc` och rekommenderade VS Code-tillägg.
+- Tre låtlägen (2026-11-21): *Spela med*, *Spela och lyssna* och *Vänta på mig*, se *Låtlägen*.
 
 **Nästa steg:** Jerry testar övningsläget med riktigt piano. Sedan bättre bas (längre fönster eller CQT) och Capacitor-spiken (del 2).
 

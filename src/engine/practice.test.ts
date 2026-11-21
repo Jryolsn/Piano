@@ -26,9 +26,9 @@ describe('buildSteps', () => {
   });
 });
 
-describe('PracticeSession tempo mode', () => {
+describe('PracticeSession flow mode', () => {
   it('advances by dt scaled by tempo and stops at the end', () => {
-    const s = new PracticeSession(song, { mode: 'tempo', tempo: 0.5 });
+    const s = new PracticeSession(song, { mode: 'flow', tempo: 0.5 });
     s.play();
     run(s, 2);
     expect(s.time).toBeCloseTo(1);
@@ -38,7 +38,7 @@ describe('PracticeSession tempo mode', () => {
   });
 
   it('does not move while paused', () => {
-    const s = new PracticeSession(song, { mode: 'tempo' });
+    const s = new PracticeSession(song, { mode: 'flow' });
     s.tick(1);
     expect(s.time).toBe(0);
   });
@@ -51,7 +51,7 @@ describe('PracticeSession tempo mode', () => {
   });
 
   it('exposes expected notes around the onset and drops them once late', () => {
-    const s = new PracticeSession(song, { mode: 'tempo' });
+    const s = new PracticeSession(song, { mode: 'flow' });
     s.seek(0.7);
     expect(s.expected()).toEqual([]);
     s.seek(0.9);
@@ -64,7 +64,7 @@ describe('PracticeSession tempo mode', () => {
   });
 
   it('moves to the next step on a match without stopping', () => {
-    const s = new PracticeSession(song, { mode: 'tempo' });
+    const s = new PracticeSession(song, { mode: 'flow' });
     s.seek(1);
     s.reportMatch();
     expect(s.expected()).toEqual([]);
@@ -126,11 +126,11 @@ describe('PracticeSession wait mode', () => {
     expect(s.expected()).toEqual([43]);
   });
 
-  it('releases a hold when switching to tempo mode', () => {
+  it('releases a hold when switching to flow mode', () => {
     const s = new PracticeSession(song);
     s.play();
     run(s, 2);
-    s.setOptions({ mode: 'tempo' });
+    s.setOptions({ mode: 'flow' });
     expect(s.waiting).toBe(false);
     run(s, 0.5);
     expect(s.time).toBeCloseTo(1.5);
@@ -160,14 +160,14 @@ describe('PracticeSession seek and loop', () => {
   });
 
   it('play at the end restarts from the beginning', () => {
-    const s = new PracticeSession(song, { mode: 'tempo' });
+    const s = new PracticeSession(song, { mode: 'flow' });
     s.seek(6);
     s.play();
     expect(s.time).toBe(0);
   });
 
   it('wraps from loop end back to loop start', () => {
-    const s = new PracticeSession(song, { mode: 'tempo', loop: { from: 1.5, to: 2.5 } });
+    const s = new PracticeSession(song, { mode: 'flow', loop: { from: 1.5, to: 2.5 } });
     expect(s.time).toBe(1.5);
     s.play();
     run(s, 1.2);
@@ -204,5 +204,58 @@ describe('PracticeSession seek and loop', () => {
     s.seek(5);
     s.setOptions({ loop: { from: 1, to: 2 } });
     expect(s.time).toBe(1);
+  });
+});
+
+describe('PracticeSession step results', () => {
+  it('marks played steps as hit and passed steps as missed while listening in flow mode', () => {
+    const s = new PracticeSession(song, { mode: 'flow' });
+    s.play();
+    run(s, 1);
+    s.reportMatch();
+    run(s, 1.5);
+    expect(s.resultOf(song.notes[0]!)).toBe('hit');
+    expect(s.resultOf(song.notes[1]!)).toBe('hit');
+    expect(s.resultOf(song.notes[2]!)).toBe('missed');
+    expect(s.resultOf(song.notes[3]!)).toBe('pending');
+    expect(s.summary()).toEqual({ hit: 1, missed: 1 });
+  });
+
+  it('finds the step of a chord note that starts slightly late', () => {
+    const s = new PracticeSession(song, { mode: 'flow' });
+    s.play();
+    run(s, 3.5);
+    expect(s.resultOf(song.notes[4]!)).toBe('missed');
+  });
+
+  it('judges nothing when not listening', () => {
+    const s = new PracticeSession(song, { mode: 'flow', listening: false });
+    s.play();
+    run(s, 6);
+    expect(s.summary()).toEqual({ hit: 0, missed: 0 });
+    expect(s.resultOf(song.notes[0]!)).toBe('pending');
+  });
+
+  it('clears results from the seek position onward', () => {
+    const s = new PracticeSession(song, { mode: 'flow' });
+    s.play();
+    run(s, 4);
+    s.seek(1.5);
+    expect(s.resultOf(song.notes[0]!)).toBe('missed');
+    expect(s.resultOf(song.notes[2]!)).toBe('pending');
+    expect(s.summary()).toEqual({ hit: 0, missed: 1 });
+  });
+
+  it('returns undefined for notes of hands not practiced', () => {
+    const s = new PracticeSession(song, { hands: ['right'] });
+    expect(s.resultOf(song.notes[1]!)).toBeUndefined();
+  });
+
+  it('marks steps played in wait mode as hit', () => {
+    const s = new PracticeSession(song);
+    s.play();
+    run(s, 1);
+    s.reportMatch();
+    expect(s.resultOf(song.notes[0]!)).toBe('hit');
   });
 });
