@@ -58,6 +58,11 @@ export class PracticeListener {
     return true;
   }
 
+  /** Notes of the step most recently reported as played. */
+  get played(): readonly number[] {
+    return this.lastPlayed;
+  }
+
   reset(): void {
     this.stepKey = '';
     this.streak = 0;

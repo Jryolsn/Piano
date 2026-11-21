@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { MAX_TEMPO, MIN_TEMPO, type LoopRange, type PracticeMode } from '../../engine/practice';
-  import { formatTime, LOOKAHEAD_RANGE, type HandChoice, type PracticeSettings } from './settings';
+  import { MAX_TEMPO, MIN_TEMPO, type LoopRange } from '../../engine/practice';
+  import { formatTime, LOOKAHEAD_RANGE, songModes, type HandChoice, type PracticeSettings } from './settings';
 
   interface Props {
     settings: PracticeSettings;
@@ -12,10 +12,6 @@
 
   let { settings = $bindable(), loop, onSetLoopStart, onSetLoopEnd, onClearLoop }: Props = $props();
 
-  const modes: { value: PracticeMode; label: string }[] = [
-    { value: 'wait', label: 'Vänta' },
-    { value: 'tempo', label: 'Tempo' },
-  ];
   const hands: { value: HandChoice; label: string }[] = [
     { value: 'left', label: 'Vänster' },
     { value: 'both', label: 'Båda' },
@@ -27,7 +23,7 @@
   <fieldset>
     <legend>Läge</legend>
     <div class="segmented">
-      {#each modes as m (m.value)}
+      {#each songModes as m (m.value)}
         <button class:on={settings.mode === m.value} onclick={() => (settings.mode = m.value)}>{m.label}</button>
       {/each}
     </div>
