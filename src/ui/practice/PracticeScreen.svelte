@@ -8,7 +8,18 @@
   import type { Song } from '../../song/model';
   import RollCanvas from './RollCanvas.svelte';
   import SettingsPanel from './SettingsPanel.svelte';
-  import { defaultSettings, formatTime, handsFor, type PracticeSettings } from './settings';
+  import {
+    defaultSettings,
+    engineModeFor,
+    formatTime,
+    handsFor,
+    loadSongMode,
+    saveSongMode,
+    songModes,
+    usesMic,
+    type PracticeSettings,
+    type SongMode,
+  } from './settings';
 
   interface Props {
     song: Song;
@@ -17,13 +28,15 @@
 
   let { song, onExit }: Props = $props();
 
-  let settings = $state<PracticeSettings>({ ...defaultSettings });
+  let settings = $state<PracticeSettings>({ ...defaultSettings, mode: loadSongMode() });
   let loop = $state<LoopRange | null>(null);
   let panelOpen = $state(false);
   let time = $state(0);
   let playing = $state(false);
   let pressed = $state<number[]>([]);
   let mic = $state<'off' | 'starting' | 'on' | 'error'>('off');
+  let hitKeys: readonly number[] = [];
+  let hitUntil = 0;
   let micSource: FrameSource | null = null;
   const listener = new PracticeListener(new FftVerifier());
 
@@ -31,7 +44,7 @@
 
   $effect(() => {
     session.setOptions({
-      mode: settings.mode,
+      ...engineModeFor(settings.mode),
       tempo: settings.tempo,
       hands: handsFor(settings.hand),
       loop,
@@ -42,7 +55,7 @@
   function frame(dt: number): RollFrame {
     const s = untrack(() => session);
     s.tick(dt);
-    if (micSource) listener.process(micSource.read(), micSource.sampleRate, s);
+    if (micSource && listener.process(micSource.read(), micSource.sampleRate, s)) flashHit(listener.played);
     time = s.time;
     playing = s.playing;
     return {
@@ -51,14 +64,36 @@
       hands: s.options.hands,
       expected: s.waiting ? s.expected() : undefined,
       pressed: untrack(() => pressed),
+      hit: performance.now() < hitUntil ? hitKeys : undefined,
+      resultOf: (n) => s.resultOf(n),
     };
+  }
+
+  /** How long a correctly played key lights up. */
+  const HIT_FLASH_MS = 400;
+
+  function flashHit(midi: readonly number[]) {
+    hitKeys = midi;
+    hitUntil = performance.now() + HIT_FLASH_MS;
+  }
+
+  const atStart = $derived(time === 0);
+  const ended = $derived(!playing && time >= song.duration);
+  const summary = $derived(ended ? session.summary() : null);
+
+  /** Starts the song in the chosen mode; runs from a tap, so the mic may be opened. */
+  function start(mode: SongMode) {
+    settings.mode = mode;
+    saveSongMode(mode);
+    if (ended) seek(loop?.from ?? 0);
+    togglePlay();
   }
 
   function togglePlay() {
     if (session.playing) session.pause();
     else {
-      // Wait mode needs to hear the piano, so start listening on the first play.
-      if (settings.mode === 'wait' && mic === 'off') void toggleMic();
+      if (usesMic(settings.mode) && mic !== 'on') void startMic();
+      else if (!usesMic(settings.mode)) void stopMic();
       session.play();
     }
     playing = session.playing;
@@ -72,22 +107,25 @@
   }
 
   /** Must run from a user gesture: browsers only allow audio and mic access then. */
-  async function toggleMic() {
-    if (micSource) {
-      const src = micSource;
-      micSource = null;
-      mic = 'off';
-      await src.close();
-      return;
-    }
+  async function startMic() {
+    if (mic === 'starting') return;
     mic = 'starting';
     try {
       micSource = createFrameSource(await openMic());
       listener.reset();
       mic = 'on';
     } catch {
+      // Without the mic the song still runs, just without listening.
       mic = 'error';
+      settings.mode = 'play';
     }
+  }
+
+  async function stopMic() {
+    const src = micSource;
+    micSource = null;
+    if (mic !== 'error') mic = 'off';
+    await src?.close();
   }
 
   /** Keys tapped recently count together, so chords can be tapped one key at a time with a mouse. */
@@ -100,6 +138,7 @@
     tappedAt.set(midi, now);
     const expected = session.expected();
     if (expected.length > 0 && expected.every((m) => now - (tappedAt.get(m) ?? -Infinity) <= CHORD_WINDOW_MS)) {
+      flashHit(expected);
       session.reportMatch();
       tappedAt.clear();
     }
@@ -160,24 +199,37 @@
         aria-label="Position i låten"
       />
       <span class="time">{formatTime(song.duration)}</span>
-      <button
-        class="round mic"
-        class:on={mic === 'on'}
-        class:error={mic === 'error'}
-        onclick={toggleMic}
-        disabled={mic === 'starting'}
-        aria-label={mic === 'on' ? 'Stäng av mikrofonen' : 'Lyssna med mikrofonen'}
-        title={mic === 'error' ? 'Mikrofonen gick inte att starta' : undefined}
-      >
-        🎤
-      </button>
       <button class="round" class:on={panelOpen} onclick={() => (panelOpen = !panelOpen)} aria-label="Inställningar">
         ⚙
       </button>
     </div>
 
-    <button class="play" onclick={togglePlay} aria-label="Spela">▶</button>
-    <p class="title">{song.title}</p>
+    {#if ended}
+      <div class="center">
+        <p class="title">{summary && summary.hit + summary.missed > 0 && settings.mode === 'listen'
+            ? `${summary.hit} av ${summary.hit + summary.missed} rätt`
+            : 'Klart!'}</p>
+        <div class="choices">
+          <button class="choice" onclick={() => start(settings.mode)}>Igen</button>
+          {#if onExit}<button class="choice" onclick={onExit}>Tillbaka</button>{/if}
+        </div>
+      </div>
+    {:else if atStart}
+      <div class="center">
+        <p class="title">{song.title}</p>
+        <div class="choices">
+          {#each songModes as m (m.value)}
+            <button class="choice" class:on={settings.mode === m.value} onclick={() => start(m.value)}>
+              <span class="icon" aria-hidden="true">{m.icon}</span>{m.label}
+            </button>
+          {/each}
+        </div>
+        {#if mic === 'error'}<p class="note">Mikrofonen gick inte att starta. Låten spelas utan att lyssna.</p>{/if}
+      </div>
+    {:else}
+      <button class="play" onclick={togglePlay} aria-label="Spela">▶</button>
+      <p class="title below">{song.title}</p>
+    {/if}
 
     {#if panelOpen}
       <div class="panel">
@@ -239,16 +291,6 @@
     background: rgba(42, 46, 55, 0.6);
     opacity: 0.5;
   }
-  .mic {
-    filter: grayscale(1);
-  }
-  .mic.on {
-    filter: none;
-    background: #2f4a3a;
-  }
-  .mic.error {
-    background: #5a2e2e;
-  }
   .play {
     position: absolute;
     left: 50%;
@@ -266,12 +308,8 @@
     cursor: pointer;
   }
   .title {
-    position: absolute;
-    left: 50%;
-    top: calc(42% + 64px);
-    transform: translateX(-50%);
     margin: 0;
-    max-width: 90%;
+    max-width: 90vw;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -279,6 +317,60 @@
     color: #c9c7c2;
     text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
     pointer-events: none;
+  }
+  .title.below {
+    position: absolute;
+    left: 50%;
+    top: calc(42% + 64px);
+    transform: translateX(-50%);
+  }
+  .center {
+    position: absolute;
+    left: 50%;
+    top: 42%;
+    transform: translate(-50%, -50%);
+    display: grid;
+    justify-items: center;
+    gap: 14px;
+    width: min(560px, calc(100vw - 32px));
+  }
+  .choices {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+  }
+  .choice {
+    flex: 1 1 140px;
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: 6px;
+    min-height: 88px;
+    padding: 12px;
+    border: 0;
+    border-radius: 16px;
+    background: rgba(42, 46, 55, 0.95);
+    color: inherit;
+    font: inherit;
+    font-size: 17px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+  }
+  .choice.on {
+    background: #5b9bd5;
+    color: #10131a;
+  }
+  .icon {
+    font-size: 24px;
+    line-height: 1;
+  }
+  .note {
+    margin: 0;
+    font-size: 14px;
+    color: #c9a27a;
+    text-align: center;
   }
   .time {
     flex: none;

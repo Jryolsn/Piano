@@ -1,3 +1,4 @@
+import type { StepResult } from '../engine/practice';
 import type { Hand, Note } from '../song/model';
 import { isBlack, keyRangeFor, layoutKeys, type KeyRange, type KeyRect } from './keyboard';
 import { theme } from './theme';
@@ -14,6 +15,10 @@ export interface RollFrame {
   expected?: readonly number[];
   /** MIDI numbers currently pressed by the player (touch or detected). */
   pressed?: readonly number[];
+  /** MIDI numbers just played correctly; flashed on the keyboard. */
+  hit?: readonly number[];
+  /** Step result per note, for hit/missed feedback. */
+  resultOf?: (note: Note) => StepResult | undefined;
 }
 
 /** Share of the canvas height used by the keyboard. */
@@ -126,8 +131,9 @@ export class RollRenderer {
         const bottom = Math.min(hitY, timeToY(n.time, time, lookahead, hitY));
         const top = Math.max(0, timeToY(end, time, lookahead, hitY));
         const colors = theme.hand[n.hand];
-        ctx.globalAlpha = practiced ? 1 : theme.otherHandAlpha;
-        ctx.fillStyle = active ? colors.active : colors.note;
+        const result = practiced ? frame.resultOf?.(n) : undefined;
+        ctx.globalAlpha = !practiced ? theme.otherHandAlpha : result === 'missed' ? theme.missedAlpha : 1;
+        ctx.fillStyle = result === 'hit' ? theme.hit : active ? colors.active : colors.note;
         roundRect(ctx, key.x + NOTE_GAP, top, key.width - NOTE_GAP * 2, bottom - top - NOTE_GAP, NOTE_RADIUS);
       }
     }
@@ -145,6 +151,7 @@ export class RollRenderer {
     }
     const expected = new Set(frame.expected ?? []);
     const pressed = new Set(frame.pressed ?? []);
+    const hit = new Set(frame.hit ?? []);
     const blackHeight = height * BLACK_KEY_RATIO;
 
     for (const k of this.keys) {
@@ -158,6 +165,10 @@ export class RollRenderer {
         ctx.fillStyle = theme.hand[hand].note;
         ctx.fillRect(k.x, top, k.width, keyHeight);
         ctx.globalAlpha = 1;
+      }
+      if (hit.has(k.midi)) {
+        ctx.fillStyle = theme.hit;
+        ctx.fillRect(k.x, top, k.width, keyHeight);
       }
       if (pressed.has(k.midi)) {
         ctx.fillStyle = theme.pressed;

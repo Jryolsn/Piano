@@ -1,7 +1,16 @@
-import type { Hand, Song } from '../song/model';
-import { buildSteps, type Step } from './steps';
+import type { Hand, Note, Song } from '../song/model';
+import { buildSteps, CHORD_TOLERANCE, type Step } from './steps';
 
-export type PracticeMode = 'wait' | 'tempo';
+/** How time moves: `wait` holds at each step until it is played; `flow` keeps going. */
+export type PracticeMode = 'wait' | 'flow';
+
+/** Outcome of one step. Steps are only judged while listening. */
+export type StepResult = 'pending' | 'hit' | 'missed';
+
+export interface PracticeSummary {
+  hit: number;
+  missed: number;
+}
 
 export interface LoopRange {
   from: number;
@@ -9,8 +18,9 @@ export interface LoopRange {
 }
 
 export interface PracticeOptions {
-  /** `wait` holds at each step until it is played; `tempo` keeps going. */
   mode: PracticeMode;
+  /** The player is heard (mic or touch), so steps passed unplayed in flow mode count as missed. */
+  listening: boolean;
   /** Playback speed, 1 = 100 %. Clamped to [MIN_TEMPO, MAX_TEMPO]. */
   tempo: number;
   hands: Hand[];
@@ -21,10 +31,10 @@ export const MIN_TEMPO = 0.25;
 export const MAX_TEMPO = 1.5;
 /** How long before its onset (wall-clock seconds) a step may already be played. */
 export const EARLY_WINDOW = 0.2;
-/** How long after its onset (wall-clock seconds) a step still counts in tempo mode. */
+/** How long after its onset (wall-clock seconds) a step still counts in flow mode. */
 export const LATE_WINDOW = 0.25;
 
-const DEFAULTS: PracticeOptions = { mode: 'wait', tempo: 1, hands: ['left', 'right'], loop: null };
+const DEFAULTS: PracticeOptions = { mode: 'wait', listening: true, tempo: 1, hands: ['left', 'right'], loop: null };
 
 /**
  * Practice transport: position, tempo, seek, loop and wait mode.
@@ -34,6 +44,7 @@ export class PracticeSession {
   readonly song: Song;
   private opts: PracticeOptions;
   private steps: Step[] = [];
+  private results: StepResult[] = [];
   /** Index of the first step not yet played or passed. */
   private current = 0;
   private t = 0;
@@ -68,9 +79,10 @@ export class PracticeSession {
     next.tempo = Math.min(MAX_TEMPO, Math.max(MIN_TEMPO, next.tempo));
     next.loop = next.loop && this.normalizeLoop(next.loop);
     this.opts = next;
-    if (next.mode === 'tempo') this.isWaiting = false;
+    if (next.mode === 'flow') this.isWaiting = false;
     if (patch.hands !== undefined) {
       this.steps = buildSteps(this.song.notes, next.hands);
+      this.results = this.steps.map(() => 'pending');
       this.seek(this.t);
     }
     const { loop } = next;
@@ -90,6 +102,7 @@ export class PracticeSession {
     this.t = Math.min(this.song.duration, Math.max(0, time));
     this.isWaiting = false;
     this.current = this.firstStepAtOrAfter(this.t);
+    this.results.fill('pending', this.current);
   }
 
   /** Advances by `dt` wall-clock seconds. */
@@ -117,9 +130,12 @@ export class PracticeSession {
     }
 
     this.t = target;
-    if (mode === 'tempo') {
+    if (mode === 'flow') {
       const late = LATE_WINDOW * tempo;
-      while (this.steps[this.current] && this.steps[this.current]!.time < this.t - late) this.current++;
+      while (this.steps[this.current] && this.steps[this.current]!.time < this.t - late) {
+        if (this.opts.listening) this.results[this.current] = 'missed';
+        this.current++;
+      }
     }
   }
 
@@ -135,8 +151,38 @@ export class PracticeSession {
   /** Called when the detector heard the expected notes. Releases a wait and moves to the next step. */
   reportMatch(): void {
     if (this.expected().length === 0) return;
+    this.results[this.current] = 'hit';
     this.current++;
     this.isWaiting = false;
+  }
+
+  /** Result of the step a note belongs to, or undefined for notes of hands not practiced. */
+  resultOf(note: Note): StepResult | undefined {
+    // Last step starting at or before the note; a chord's later notes sit within CHORD_TOLERANCE of it.
+    let lo = 0;
+    let hi = this.steps.length - 1;
+    let i = -1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (this.steps[mid]!.time <= note.time) {
+        i = mid;
+        lo = mid + 1;
+      } else hi = mid - 1;
+    }
+    const step = this.steps[i];
+    if (!step || note.time - step.time > CHORD_TOLERANCE || !step.midi.includes(note.midi)) return undefined;
+    return this.results[i];
+  }
+
+  /** Steps judged since the start or the last seek back. */
+  summary(): PracticeSummary {
+    let hit = 0;
+    let missed = 0;
+    for (const r of this.results) {
+      if (r === 'hit') hit++;
+      else if (r === 'missed') missed++;
+    }
+    return { hit, missed };
   }
 
   private firstStepAtOrAfter(time: number): number {

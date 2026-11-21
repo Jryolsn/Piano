@@ -11,12 +11,16 @@ export const theme = {
   keyBorder: '#9a9894',
   keyLabel: '#8a8781',
   pressed: 'rgba(120, 200, 140, 0.8)',
+  /** Notes and keys played correctly. */
+  hit: '#6fbf86',
   hand: {
     right: { note: '#5b9bd5', active: '#8cc0f0' },
     left: { note: '#e0a458', active: '#f5c88a' },
   } satisfies Record<Hand, { note: string; active: string }>,
   /** Opacity of notes for hands not being practiced. */
   otherHandAlpha: 0.25,
+  /** Opacity of notes that passed unplayed while listening. */
+  missedAlpha: 0.3,
   /** Opacity of the next-onset hint on the keyboard. */
   hintAlpha: 0.35,
 };
