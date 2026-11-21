@@ -1,6 +1,6 @@
 # Pianoapp – plan och status
 
-> Startdokument för projektet. Uppdatera **Status** och **Beslutslogg** efter varje arbetspass så att arbetet kan återupptas i en ny session.
+> Startdokument för projektet. Uppdatera **Status** och **Beslutslogg** efter varje arbetspass så att arbetet kan återupptas i en ny session. Idéer och saker att fixa samlas i `BACKLOG.md`. Detaljplaner för enskilda arbeten ligger i `dev-tickets/` (se `dev-tickets/INDEX.md`).
 
 ## Mål
 
@@ -119,7 +119,7 @@ Principer:
 ## Faser
 
 ### Fas 0 – Grund och riskspikes
-- [x] Skapa projekt, Vite + TS, Vitest, lint, `AGENT.md`, `LICENSE` (MIT) – lokalt, inget GitHub-repo ännu
+- [x] Skapa projekt, Vite + TS, Vitest, lint, `AGENT.md`, `LICENSE` (MIT)
 - [x] Välj UI-ramverk: Svelte 5
 - [ ] **Spike: mikrofonen i Capacitor på Android.** Fungerar `getUserMedia` i WebView, och hur är latensen? Kontrollera att echo cancellation, noise suppression och auto gain går att stänga av.
 - [x] **Spike: detektering.** Resultat i `spikes/detection/README.md`. Spela in några toner och ackord på det digitala pianot via telefonen. Jämför a) FFT-verifiering, b) `pitchy`, c) Basic Pitch. Mät träffsäkerhet och latens.
@@ -162,7 +162,6 @@ Principer:
 - Mappstrukturen enligt arkitekturen finns. Första kod: `song/model.ts` (typer), `audio/detector.ts` (gränssnitt), `engine/window.ts` (`notesInWindow` för framförhållning och handval) med tester.
 - Licensgranskning av hela dev-trädet gjord, se `THIRD_PARTY_NOTICES.md`.
 - Svelte 5 inkopplat (`App.svelte`, `svelte-check` för typkontroll). ESLint täcker .ts/.js, `svelte-check` täcker .svelte.
-- Ingen git-commit och inget GitHub-repo ännu.
 
 - Repo: github.com/Jryolsn/piano. Branchar och releaser beskrivs i README: PR:er mot `dev`, varje push till `dev` ger en prerelease med Android-APK och webbversion på `/Piano/dev/`. `main` är stabil på `/Piano/`.
 - Mikrofonspike, del 1: `spikes/mic/` visar ljudfiltrens status, rapporterad latens, nivå, spektrum och toppar som tonnamn. Sidan kan spela in guidade tagningar som WAV plus en `report.json`, för analys offline och som testdata. Ljudmodulerna `audio/mic.ts`, `audio/wav.ts`, `audio/pitch.ts` och `audio/spectrum.ts` har tester.
@@ -175,6 +174,7 @@ Principer:
 - Detekteringsspike klar (2026-11-21): 9 tagningar från digitalpiano via Android-telefon (Chrome) i `test/fixtures/mic/`. Den nya `FftVerifier` (`audio/verifier.ts`) jämfördes med appens `SpectralDetector`, `pitchy` och Basic Pitch. Kör `npm run spike:detection`. Ljudfiltren gick att stänga av, rapporterad latens 40 ms.
 - Övningsläget använder nu `FftVerifier` med en brusgräns som anpassar sig till rummet. `SpectralDetector` är borttagen.
 
+- Repot är förberett för att växla mellan Claude-appen, Claude Code, andra AI-verktyg och manuell kodning i en IDE (2026-11-21): `AGENT.md` (läses av Claude Code via `CLAUDE.md`), `BACKLOG.md` för idéer och saker att fixa, `dev-tickets/` för planer per arbete, `.editorconfig`, `.nvmrc` och rekommenderade VS Code-tillägg.
 - Tre låtlägen (2026-11-21): *Spela med*, *Spela och lyssna* och *Vänta på mig*, se *Låtlägen*.
 
 **Nästa steg:** Jerry testar övningsläget med riktigt piano. Sedan bättre bas (längre fönster eller CQT) och Capacitor-spiken (del 2).
@@ -199,3 +199,4 @@ Principer:
 | 2026-11-21 | Basic Pitch används inte i realtid: för långsam på mobil, arbetar på hela klipp och hittar på toner i brus. `pitchy` kan bli kontroll för enstaka toner. |
 | 2026-11-21 | Basregistret (under C3) behöver längre analysfönster eller CQT. Diskanten fungerade vid fastare anslag. |
 | 2026-11-16 | Importerade låtar sparas lokalt i IndexedDB som tolkad `Song`, inte som rå MIDI. Inbyggda låtar skrivs i egen textnotation i koden. |
+| 2026-11-21 | Planer på två nivåer: `PLAN.md` för hela projektet, `dev-tickets/<ticket>/PLAN.md` för varje arbete enligt metoden i `dev-tickets/README.md`. Allt som behövs för att fortsätta ska stå i filerna, inte i en chatt. |
