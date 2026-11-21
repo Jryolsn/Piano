@@ -5,6 +5,7 @@
   import { FftVerifier } from '../../audio/verifier';
   import { PracticeSession, type LoopRange } from '../../engine/practice';
   import type { RollFrame } from '../../render/roll';
+  import { createKeepAwake } from '../../platform/keep-awake';
   import type { Song } from '../../song/model';
   import RollCanvas from './RollCanvas.svelte';
   import SettingsPanel from './SettingsPanel.svelte';
@@ -157,6 +158,9 @@
   }
 
   onMount(() => {
+    // Keep the screen on for the whole song screen, also while paused between tries.
+    const keepAwake = createKeepAwake();
+    void keepAwake.acquire();
     function onKey(e: KeyboardEvent) {
       if (e.target instanceof HTMLInputElement && e.target.type !== 'range') return;
       if (e.code === 'Space') togglePlay();
@@ -169,6 +173,7 @@
     window.addEventListener('keydown', onKey);
     return () => {
       window.removeEventListener('keydown', onKey);
+      void keepAwake.release();
       session.pause();
       void micSource?.close();
       micSource = null;
