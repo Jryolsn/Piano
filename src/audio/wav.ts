@@ -24,3 +24,29 @@ export function encodeWav(samples: Float32Array, sampleRate: number): ArrayBuffe
   });
   return buffer;
 }
+
+/** Decodes a mono or multi-channel 16-bit PCM WAV, returning the first channel. */
+export function decodeWav(buffer: ArrayBuffer): { samples: Float32Array; sampleRate: number } {
+  const view = new DataView(buffer);
+  let offset = 12;
+  let channels = 1;
+  let sampleRate = 0;
+  while (offset + 8 <= view.byteLength) {
+    const id = String.fromCharCode(...[0, 1, 2, 3].map((i) => view.getUint8(offset + i)));
+    const size = view.getUint32(offset + 4, true);
+    if (id === 'fmt ') {
+      if (view.getUint16(offset + 8, true) !== 1 || view.getUint16(offset + 22, true) !== 16) {
+        throw new Error('Only 16-bit PCM WAV is supported');
+      }
+      channels = view.getUint16(offset + 10, true);
+      sampleRate = view.getUint32(offset + 12, true);
+    } else if (id === 'data') {
+      const count = Math.floor(size / 2 / channels);
+      const samples = new Float32Array(count);
+      for (let i = 0; i < count; i++) samples[i] = view.getInt16(offset + 8 + i * 2 * channels, true) / 0x8000;
+      return { samples, sampleRate };
+    }
+    offset += 8 + size + (size % 2);
+  }
+  throw new Error('No data chunk in WAV');
+}

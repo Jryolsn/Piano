@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findPeaks } from './spectrum';
+import { findPeaks, levelDb } from './spectrum';
 
 const SAMPLE_RATE = 48000;
 const BINS = 4096;
@@ -30,5 +30,12 @@ describe('findPeaks', () => {
 
   it('ignores peaks outside the frequency range', () => {
     expect(findPeaks(spectrumWith([{ hz: 8000, db: -20 }]), SAMPLE_RATE)).toEqual([]);
+  });
+});
+
+describe('levelDb', () => {
+  it('is 0 dBFS for a full-scale square wave and very low for silence', () => {
+    expect(levelDb(Float32Array.from([1, -1, 1, -1]))).toBeCloseTo(0);
+    expect(levelDb(new Float32Array(4))).toBeLessThan(-150);
   });
 });

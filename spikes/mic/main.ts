@@ -94,6 +94,9 @@ function setupRecording(ctx: AudioContext, recorder: Recorder, environment: obje
     $('kbd-zoom').replaceChildren(take.keys.length ? keyboardSvg(take.keys, ...zoomRange(take.keys)) : '');
   };
   select.addEventListener('change', showInstruction);
+  // ?take=<id> jumps straight to one take, for re-recording.
+  const requested = new URLSearchParams(location.search).get('take');
+  if (requested && TAKES.some((t) => t.id === requested)) select.value = requested;
   showInstruction();
 
   recButton.addEventListener('click', () => {

@@ -2,7 +2,7 @@
   import { onMount, untrack } from 'svelte';
   import { createFrameSource, openMic, type FrameSource } from '../../audio/mic';
   import { PracticeListener } from '../../audio/practice-listener';
-  import { SpectralDetector } from '../../audio/spectral-detector';
+  import { FftVerifier } from '../../audio/verifier';
   import { PracticeSession, type LoopRange } from '../../engine/practice';
   import type { RollFrame } from '../../render/roll';
   import type { Song } from '../../song/model';
@@ -25,7 +25,7 @@
   let pressed = $state<number[]>([]);
   let mic = $state<'off' | 'starting' | 'on' | 'error'>('off');
   let micSource: FrameSource | null = null;
-  const listener = new PracticeListener(new SpectralDetector());
+  const listener = new PracticeListener(new FftVerifier());
 
   const session = $derived(new PracticeSession(song));
 

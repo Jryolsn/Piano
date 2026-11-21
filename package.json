@@ -10,7 +10,8 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "typecheck": "svelte-check --tsconfig ./tsconfig.json",
-    "android": "npm run build && cap sync android && cap open android"
+    "android": "npm run build && cap sync android && cap open android",
+    "spike:detection": "tsx spikes/detection/compare.ts"
   },
   "license": "MIT",
   "devDependencies": {
@@ -20,8 +21,10 @@
     "@types/node": "^26.6.6",
     "eslint": "^10.15.0",
     "globals": "^17.14.0",
+    "pitchy": "^4.1.0",
     "svelte": "^5.57.3",
     "svelte-check": "^4.7.8",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.0",
     "typescript-eslint": "^8.73.0",
     "vite": "^8.3.8",

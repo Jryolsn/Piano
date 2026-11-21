@@ -44,7 +44,8 @@ export const TAKES: Take[] = [
     title: 'Höga toner',
     steps: [
       'Till höger på pianot. Den sista gula är allra längst till höger.',
-      'Tryck de gula tangenterna en i taget, från vänster till höger. Håll varje ungefär 1 sekund.',
+      'Tryck de gula tangenterna en i taget, från vänster till höger. Tryck bestämt, ungefär som när man knackar på en dörr, och håll varje i 2 sekunder.',
+      'Lägg telefonen nära den högra delen av pianot.',
     ],
     keys: [72, 84, 96, 108],
     expected: 'C5, C6, C7, C8 one at a time',
