@@ -36,3 +36,10 @@ export function median(values: Float32Array): number {
   const sorted = Float32Array.from(values).sort();
   return sorted[sorted.length >> 1] ?? -Infinity;
 }
+
+/** RMS level in dBFS. */
+export function levelDb(frame: Float32Array): number {
+  let sum = 0;
+  for (const v of frame) sum += v * v;
+  return 10 * Math.log10(sum / Math.max(1, frame.length) + 1e-20);
+}

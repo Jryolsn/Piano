@@ -28,6 +28,8 @@ license notice in those files.
 | @sveltejs/vite-plugin-svelte | MIT |
 | svelte-check | MIT |
 | @types/node | MIT |
+| tsx (incl. esbuild) | MIT |
+| pitchy (incl. fft.js), detection spike only | MIT |
 | @capacitor/cli | MIT |
 
 License audit of the full dev tree (2026-11-16): MIT, Apache-2.0, ISC, BSD-2/3-Clause,

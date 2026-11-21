@@ -101,8 +101,8 @@ Principer:
 - [x] Skapa projekt, Vite + TS, Vitest, lint, `AGENT.md`, `LICENSE` (MIT) – lokalt, inget GitHub-repo ännu
 - [x] Välj UI-ramverk: Svelte 5
 - [ ] **Spike: mikrofonen i Capacitor på Android.** Fungerar `getUserMedia` i WebView, och hur är latensen? Kontrollera att echo cancellation, noise suppression och auto gain går att stänga av.
-- [ ] **Spike: detektering.** Spela in några toner och ackord på det digitala pianot via telefonen. Jämför a) FFT-verifiering, b) `pitchy`, c) Basic Pitch. Mät träffsäkerhet och latens.
-- [ ] Beslut om detekteringsmetod → beslutslogg
+- [x] **Spike: detektering.** Resultat i `spikes/detection/README.md`. Spela in några toner och ackord på det digitala pianot via telefonen. Jämför a) FFT-verifiering, b) `pitchy`, c) Basic Pitch. Mät träffsäkerhet och latens.
+- [x] Beslut om detekteringsmetod → beslutslogg
 
 ### Fas 1 – Kärnan (MVP)
 - [x] Låtmodell och MIDI-import (händer från spår eller kanaler, tempoändringar)
@@ -146,12 +146,15 @@ Principer:
 - Repo: github.com/Jryolsn/piano. Branchar och releaser beskrivs i README: PR:er mot `dev`, varje push till `dev` ger en prerelease med Android-APK och webbversion på `/Piano/dev/`. `main` är stabil på `/Piano/`.
 - Mikrofonspike, del 1: `spikes/mic/` visar ljudfiltrens status, rapporterad latens, nivå, spektrum och toppar som tonnamn. Sidan kan spela in guidade tagningar som WAV plus en `report.json`, för analys offline och som testdata. Ljudmodulerna `audio/mic.ts`, `audio/wav.ts`, `audio/pitch.ts` och `audio/spectrum.ts` har tester.
 
-- Övningsmotorn: `engine/practice.ts` (`PracticeSession`: vänteläge, tempoläge 25–150 %, seek, loop A–B, handval; drivs med `tick(dt)` utan timers) och `engine/steps.ts` (noter grupperas till steg/ackord). Detektorkoppling: `audio/spectral-detector.ts` (FFT-verifiering av förväntade toner, standardimplementation), `audio/practice-listener.ts` (debounce och krav på nytt anslag vid upprepad ton) och `createFrameSource` i `audio/mic.ts`. Gränsvärdena är preliminära och kalibreras mot spikeinspelningarna.
+- Övningsmotorn: `engine/practice.ts` (`PracticeSession`: vänteläge, tempoläge 25–150 %, seek, loop A–B, handval; drivs med `tick(dt)` utan timers) och `engine/steps.ts` (noter grupperas till steg/ackord). Detektorkoppling: `audio/verifier.ts` (`FftVerifier`, FFT-verifiering av förväntade toner), `audio/practice-listener.ts` (debounce och krav på nytt anslag vid upprepad ton) och `createFrameSource` i `audio/mic.ts`. Gränsvärdena är kalibrerade mot spikeinspelningarna.
 - Låtbibliotek: `song/midi.ts` (import med `@tonejs/midi`, händer från spårnamn eller tonhöjd), `song/notation.ts` (kompakt notation för inbyggda låtar), `song/builtin.ts` (8 fria låtar, svårighet 1–4), `song/library.ts` + `song/storage.ts` (importer sparas i IndexedDB), skärm i `ui/library/`.
 
 - Appflöde: biblioteket öppnar övningsskärmen, och tillbaka-knappen leder till biblioteket.
 
-**Nästa steg:** Jerry spelar in tagningarna på `/Piano/spikes/mic/` och laddar upp dem. Analysen jämför FFT-verifiering, `pitchy` och Basic Pitch på samma ljud. Sedan samma sida i en Capacitor-APK (del 2).
+- Detekteringsspike klar (2026-11-21): 9 tagningar från digitalpiano via Android-telefon (Chrome) i `test/fixtures/mic/`. Den nya `FftVerifier` (`audio/verifier.ts`) jämfördes med appens `SpectralDetector`, `pitchy` och Basic Pitch. Kör `npm run spike:detection`. Ljudfiltren gick att stänga av, rapporterad latens 40 ms.
+- Övningsläget använder nu `FftVerifier` med en brusgräns som anpassar sig till rummet. `SpectralDetector` är borttagen.
+
+**Nästa steg:** Jerry testar övningsläget med riktigt piano. Sedan bättre bas (längre fönster eller CQT) och Capacitor-spiken (del 2).
 
 ## Beslutslogg
 
@@ -167,6 +170,9 @@ Principer:
 | 2026-11-16 | Mikrofonspiken körs först i Chrome på Android via Pages, sedan i Capacitor. |
 | 2026-11-16 | Releaseflöde: `dev` för löpande prereleases (`vX.Y.Z-dev.N`), `main` för stabila releaser via tagg. APK:n byggs i CI med Capacitor, innehåller webbygget och fungerar offline. Webben på Pages: stabil på `/Piano/`, dev på `/Piano/dev/`. |
 | 2026-11-16 | Upphovsrättsraden i LICENSE är "PianoApp contributors" för att hålla personuppgifter utanför repot. |
-| 2026-11-16 | Standarddetektor: FFT-verifiering där en ton räknas som spelad om grundtonen, eller både 2:a och 3:e övertonen, sticker ut. Kan bytas efter spiken. |
+| 2026-11-16 | Standarddetektor: FFT-verifiering där en ton räknas som spelad om grundtonen, eller både 2:a och 3:e övertonen, sticker ut. Ersatt 2026-11-21, se nedan. |
 | 2026-11-16 | MIDI-import: händer från spårnamn (left/right, LH/RH, bass/treble), annars högsta av två spår = höger, ett enda spår delas vid mellan-C. Slagverk (kanal 10) ignoreras. |
+| 2026-11-21 | Detektering: `FftVerifier` blir standard. Den hittade alla rätta toner och ackord i mellanregistret med få falsklarm, medan `SpectralDetector` godkände nästan alla fel toner och tystnad. Den kräver anslag (stigande nivå), udda överton, kontrast mot halvtonsgrannar och en brusgräns som följer rummets tystaste stund (ingen manuell kalibrering). |
+| 2026-11-21 | Basic Pitch används inte i realtid: för långsam på mobil, arbetar på hela klipp och hittar på toner i brus. `pitchy` kan bli kontroll för enstaka toner. |
+| 2026-11-21 | Basregistret (under C3) behöver längre analysfönster eller CQT. Diskanten fungerade vid fastare anslag. |
 | 2026-11-16 | Importerade låtar sparas lokalt i IndexedDB som tolkad `Song`, inte som rå MIDI. Inbyggda låtar skrivs i egen textnotation i koden. |

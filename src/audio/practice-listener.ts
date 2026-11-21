@@ -1,5 +1,5 @@
 import type { Detector } from './detector';
-import { levelDb } from './spectral-detector';
+import { levelDb } from './spectrum';
 
 /** The part of a practice session the listener drives. */
 export interface PracticeTarget {
@@ -39,6 +39,9 @@ export class PracticeListener {
     if (key !== this.stepKey) this.startStep(key, expected);
     if (expected.length === 0) return false;
 
+    // Always feed the detector so stateful detectors keep their history and room estimate.
+    const match = this.detector.detect(frame, sampleRate, expected).match;
+
     if (this.needsOnset) {
       const level = levelDb(frame);
       this.quietest = Math.min(this.quietest, level);
@@ -46,7 +49,7 @@ export class PracticeListener {
       this.needsOnset = false;
     }
 
-    this.streak = this.detector.detect(frame, sampleRate, expected).match ? this.streak + 1 : 0;
+    this.streak = match ? this.streak + 1 : 0;
     if (this.streak < this.holdFrames) return false;
 
     this.lastPlayed = [...expected];

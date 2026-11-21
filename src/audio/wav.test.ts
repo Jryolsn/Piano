@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { encodeWav } from './wav';
+import { decodeWav, encodeWav } from './wav';
 
 describe('encodeWav', () => {
   const view = new DataView(encodeWav(Float32Array.from([0, 1, -1, 2]), 48000));
@@ -16,5 +16,13 @@ describe('encodeWav', () => {
 
   it('scales and clips samples', () => {
     expect([0, 1, 2, 3].map((i) => view.getInt16(44 + i * 2, true))).toEqual([0, 32767, -32768, 32767]);
+  });
+});
+
+describe('decodeWav', () => {
+  it('round-trips encoded samples', () => {
+    const { samples, sampleRate } = decodeWav(encodeWav(Float32Array.from([0, 0.5, -0.5]), 44100));
+    expect(sampleRate).toBe(44100);
+    expect([...samples].map((x) => Math.round(x * 100) / 100)).toEqual([0, 0.5, -0.5]);
   });
 });
