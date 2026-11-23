@@ -74,3 +74,25 @@ describe('FftVerifier', () => {
     expect(v.detect(new Float32Array(N), SR, [60]).match).toBe(false);
   });
 });
+
+describe('FftVerifier heard notes', () => {
+  const heard = (midis: number[], expected: number[] = []) =>
+    new FftVerifier().detect(tone(midis), SR, expected, [58, 59, 60, 61, 62, 64, 67, 72]).heard;
+
+  it('names an unexpected note that was played', () => {
+    expect(heard([62], [60])).toContain(62);
+  });
+
+  it('includes expected notes that sound', () => {
+    expect(heard([60], [60])).toContain(60);
+  });
+
+  it('does not report the neighbours of a played note', () => {
+    expect(heard([60])).not.toContain(61);
+    expect(heard([60])).not.toContain(59);
+  });
+
+  it('reports nothing for silence', () => {
+    expect(heard([])).toEqual([]);
+  });
+});

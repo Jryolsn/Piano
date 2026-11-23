@@ -3,13 +3,13 @@ import type { Hand } from '../../song/model';
 
 export type HandChoice = 'left' | 'right' | 'both';
 
-/** How a song is played: along without the mic, along while listening, or waiting for each note. */
-export type SongMode = 'play' | 'listen' | 'wait';
+/** How a song is played: heard only, played along with while the mic listens, or waiting for each note. */
+export type SongMode = 'listen' | 'along' | 'wait';
 
-export const songModes: { value: SongMode; label: string; icon: string }[] = [
-  { value: 'play', label: 'Spela med', icon: '🎹' },
-  { value: 'listen', label: 'Spela och lyssna', icon: '🎤' },
-  { value: 'wait', label: 'Vänta på mig', icon: '✋' },
+export const songModes: { value: SongMode; label: string; hint: string }[] = [
+  { value: 'listen', label: 'Lyssna', hint: 'Hör hur låten låter' },
+  { value: 'along', label: 'Spela med', hint: 'Följ med, appen lyssnar' },
+  { value: 'wait', label: 'Vänta', hint: 'Låten väntar på dig' },
 ];
 
 /** User-adjustable practice settings shown in the collapsible panel. */
@@ -36,20 +36,19 @@ export function formatTime(seconds: number): string {
 }
 
 export function engineModeFor(mode: SongMode): Pick<PracticeOptions, 'mode' | 'listening'> {
-  return { mode: mode === 'wait' ? 'wait' : 'flow', listening: mode !== 'play' };
+  return { mode: mode === 'wait' ? 'wait' : 'flow', listening: mode !== 'listen' };
 }
 
 export function usesMic(mode: SongMode): boolean {
-  return mode !== 'play';
+  return mode !== 'listen';
 }
 
-/** The app sounds the song only when the mic is off, so the detector never hears the app itself. */
-export function playsSound(mode: SongMode, soundOn: boolean): boolean {
-  return soundOn && !usesMic(mode);
+/** The app sounds the song only in Lyssna, so the detector never hears the app itself. */
+export function playsSound(mode: SongMode): boolean {
+  return !usesMic(mode);
 }
 
-const MODE_KEY = 'pianoapp.songMode';
-const SOUND_KEY = 'pianoapp.sound';
+const MODE_KEY = 'pianoapp.mode';
 
 /** Last chosen mode, so it is preselected next time. */
 export function loadSongMode(storage?: Pick<Storage, 'getItem'>): SongMode {
@@ -59,15 +58,6 @@ export function loadSongMode(storage?: Pick<Storage, 'getItem'>): SongMode {
 
 export function saveSongMode(mode: SongMode, storage?: Pick<Storage, 'setItem'>): void {
   write(MODE_KEY, mode, storage);
-}
-
-/** Whether the song is heard in "Spela med"; on unless turned off. */
-export function loadSound(storage?: Pick<Storage, 'getItem'>): boolean {
-  return read(SOUND_KEY, storage) !== 'off';
-}
-
-export function saveSound(on: boolean, storage?: Pick<Storage, 'setItem'>): void {
-  write(SOUND_KEY, on ? 'on' : 'off', storage);
 }
 
 // Storage may be unavailable (private mode); then nothing is remembered.

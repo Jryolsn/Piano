@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Note } from '../song/model';
-import { firstVisibleIndex, nextOnset, soundingAt, timeToY } from './timeline';
+import { dragToSeconds, firstVisibleIndex, nextOnset, soundingAt, timeToY } from './timeline';
 
 const notes: Note[] = [
   { midi: 48, time: 0, duration: 4, hand: 'left' },
@@ -52,5 +52,13 @@ describe('timeToY', () => {
     expect(timeToY(10, 10, 4, 300)).toBe(300);
     expect(timeToY(14, 10, 4, 300)).toBe(0);
     expect(timeToY(12, 10, 4, 300)).toBe(150);
+  });
+});
+
+describe('dragToSeconds', () => {
+  it('maps a drag over the roll height to the lookahead', () => {
+    expect(dragToSeconds(200, 4, 400)).toBe(2);
+    expect(dragToSeconds(-100, 4, 400)).toBe(-1);
+    expect(dragToSeconds(50, 4, 0)).toBe(0);
   });
 });

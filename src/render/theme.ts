@@ -10,9 +10,13 @@ export const theme = {
   blackKey: '#23262d',
   keyBorder: '#9a9894',
   keyLabel: '#8a8781',
-  pressed: 'rgba(120, 200, 140, 0.8)',
+  pressed: 'rgba(233, 231, 226, 0.95)',
   /** Notes and keys played correctly. */
   hit: '#6fbf86',
+  /** Glow around a correctly played note while it is meant to sound. */
+  glow: 'rgba(130, 235, 160, 0.9)',
+  /** Marker for a key that was played but is not the right note. */
+  wrong: '#e08a7a',
   hand: {
     right: { note: '#5b9bd5', active: '#8cc0f0' },
     left: { note: '#e0a458', active: '#f5c88a' },

@@ -47,3 +47,8 @@ export function nextOnset(notes: readonly Note[], time: number, hands: readonly 
 export function timeToY(t: number, time: number, lookahead: number, hitY: number): number {
   return hitY - ((t - time) / lookahead) * hitY;
 }
+
+/** Song seconds covered by a vertical drag of `dy` pixels (downwards moves the song forward). */
+export function dragToSeconds(dy: number, lookahead: number, hitY: number): number {
+  return hitY > 0 ? (dy / hitY) * lookahead : 0;
+}

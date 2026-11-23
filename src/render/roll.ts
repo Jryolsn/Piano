@@ -13,8 +13,10 @@ export interface RollFrame {
   hands: readonly Hand[];
   /** MIDI numbers the player must play now (wait mode); emphasised on the keyboard. */
   expected?: readonly number[];
-  /** MIDI numbers currently pressed by the player (touch or detected). */
+  /** MIDI numbers currently played by the player (touch or detected), marked on the keyboard. */
   pressed?: readonly number[];
+  /** The player is being judged, so a played key that is not right is marked as wrong. */
+  judged?: boolean;
   /** MIDI numbers just played correctly; flashed on the keyboard. */
   hit?: readonly number[];
   /** Step result per note, for hit/missed feedback. */
@@ -27,6 +29,8 @@ const MAX_KEYBOARD_PX = 160;
 const BLACK_KEY_RATIO = 0.62;
 const NOTE_RADIUS = 4;
 const NOTE_GAP = 1;
+const GLOW_BLUR = 18;
+const MARKER_SIZE = 8;
 
 /** Falling-note piano roll drawn on a 2D canvas. Call `draw` once per animation frame. */
 export class RollRenderer {
@@ -71,8 +75,13 @@ export class RollRenderer {
     ctx.fillStyle = theme.background;
     ctx.fillRect(0, 0, w, h);
     this.drawLanes(hitY);
-    const sounding = this.drawNotes(frame, hitY);
-    this.drawKeyboard(frame, hitY, keyboardHeight, sounding);
+    const { sounding, lit } = this.drawNotes(frame, hitY);
+    this.drawKeyboard(frame, hitY, keyboardHeight, sounding, lit);
+  }
+
+  /** Y of the hit line in CSS pixels. */
+  hitLineY(): number {
+    return this.cssHeight - this.keyboardHeight();
   }
 
   /** MIDI number of the keyboard key at a CSS-pixel point, or null outside the keyboard. */
@@ -107,12 +116,13 @@ export class RollRenderer {
     }
   }
 
-  /** Draws visible notes and returns the keys currently sounding, by hand. */
-  private drawNotes(frame: RollFrame, hitY: number): Map<number, Hand> {
+  /** Draws visible notes; returns the keys sounding by hand, and those sounding after being played right. */
+  private drawNotes(frame: RollFrame, hitY: number): { sounding: Map<number, Hand>; lit: Set<number> } {
     const { ctx, notes } = this;
     const { time, lookahead, hands } = frame;
     const until = time + lookahead;
     const sounding = new Map<number, Hand>();
+    const lit = new Set<number>();
 
     // Black-key notes last so they stay visible over adjacent white-key notes.
     for (const pass of [false, true]) {
@@ -126,24 +136,31 @@ export class RollRenderer {
 
         const practiced = hands.includes(n.hand);
         const active = n.time <= time;
+        const result = practiced ? frame.resultOf?.(n) : undefined;
+        const glowing = active && result === 'hit';
         if (active && practiced) sounding.set(n.midi, n.hand);
+        if (glowing) lit.add(n.midi);
 
         const bottom = Math.min(hitY, timeToY(n.time, time, lookahead, hitY));
         const top = Math.max(0, timeToY(end, time, lookahead, hitY));
         const colors = theme.hand[n.hand];
-        const result = practiced ? frame.resultOf?.(n) : undefined;
         ctx.globalAlpha = !practiced ? theme.otherHandAlpha : result === 'missed' ? theme.missedAlpha : 1;
         ctx.fillStyle = result === 'hit' ? theme.hit : active ? colors.active : colors.note;
+        if (glowing) {
+          ctx.shadowColor = theme.glow;
+          ctx.shadowBlur = GLOW_BLUR;
+        }
         roundRect(ctx, key.x + NOTE_GAP, top, key.width - NOTE_GAP * 2, bottom - top - NOTE_GAP, NOTE_RADIUS);
+        ctx.shadowBlur = 0;
       }
     }
     ctx.globalAlpha = 1;
     ctx.fillStyle = theme.hitLine;
     ctx.fillRect(0, hitY - 1, this.cssWidth, 2);
-    return sounding;
+    return { sounding, lit };
   }
 
-  private drawKeyboard(frame: RollFrame, top: number, height: number, sounding: Map<number, Hand>): void {
+  private drawKeyboard(frame: RollFrame, top: number, height: number, sounding: Map<number, Hand>, lit: Set<number>): void {
     const { ctx } = this;
     const hint = new Map<number, Hand>();
     for (const n of nextOnset(this.notes, frame.time, frame.hands)) {
@@ -166,13 +183,18 @@ export class RollRenderer {
         ctx.fillRect(k.x, top, k.width, keyHeight);
         ctx.globalAlpha = 1;
       }
-      if (hit.has(k.midi)) {
+      if (hit.has(k.midi) || lit.has(k.midi)) {
         ctx.fillStyle = theme.hit;
+        ctx.shadowColor = theme.glow;
+        ctx.shadowBlur = lit.has(k.midi) ? GLOW_BLUR : 0;
         ctx.fillRect(k.x, top, k.width, keyHeight);
+        ctx.shadowBlur = 0;
       }
       if (pressed.has(k.midi)) {
-        ctx.fillStyle = theme.pressed;
-        ctx.fillRect(k.x, top + keyHeight * 0.5, k.width, keyHeight * 0.5);
+        const right = lit.has(k.midi) || hit.has(k.midi) || expected.has(k.midi);
+        ctx.fillStyle = frame.judged && !right ? theme.wrong : theme.pressed;
+        const w = Math.min(k.width * 0.55, 18);
+        roundRect(ctx, k.x + (k.width - w) / 2, top + keyHeight - MARKER_SIZE - 8, w, MARKER_SIZE, MARKER_SIZE / 2);
       }
       if (expected.has(k.midi)) {
         ctx.strokeStyle = theme.hand[hand ?? 'right'].active;

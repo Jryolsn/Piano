@@ -4,10 +4,8 @@ import {
   formatTime,
   handsFor,
   loadSongMode,
-  loadSound,
   playsSound,
   saveSongMode,
-  saveSound,
 } from './settings';
 
 describe('handsFor', () => {
@@ -27,8 +25,8 @@ describe('formatTime', () => {
 
 describe('engineModeFor', () => {
   it('maps song modes to engine timing and listening', () => {
-    expect(engineModeFor('play')).toEqual({ mode: 'flow', listening: false });
-    expect(engineModeFor('listen')).toEqual({ mode: 'flow', listening: true });
+    expect(engineModeFor('listen')).toEqual({ mode: 'flow', listening: false });
+    expect(engineModeFor('along')).toEqual({ mode: 'flow', listening: true });
     expect(engineModeFor('wait')).toEqual({ mode: 'wait', listening: true });
   });
 });
@@ -38,9 +36,9 @@ describe('song mode storage', () => {
     const data = new Map<string, string>();
     const storage = { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v) };
     expect(loadSongMode(storage)).toBe('wait');
-    saveSongMode('listen', storage);
-    expect(loadSongMode(storage)).toBe('listen');
-    data.set('pianoapp.songMode', 'bogus');
+    saveSongMode('along', storage);
+    expect(loadSongMode(storage)).toBe('along');
+    data.set('pianoapp.mode', 'bogus');
     expect(loadSongMode(storage)).toBe('wait');
   });
 
@@ -55,20 +53,9 @@ describe('song mode storage', () => {
 });
 
 describe('sound', () => {
-  it('is only heard when the mic is off', () => {
-    expect(playsSound('play', true)).toBe(true);
-    expect(playsSound('play', false)).toBe(false);
-    expect(playsSound('listen', true)).toBe(false);
-    expect(playsSound('wait', true)).toBe(false);
-  });
-
-  it('is on by default and remembers being turned off', () => {
-    const data = new Map<string, string>();
-    const storage = { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v) };
-    expect(loadSound(storage)).toBe(true);
-    saveSound(false, storage);
-    expect(loadSound(storage)).toBe(false);
-    saveSound(true, storage);
-    expect(loadSound(storage)).toBe(true);
+  it('is only heard in Lyssna, so the mic never hears the app', () => {
+    expect(playsSound('listen')).toBe(true);
+    expect(playsSound('along')).toBe(false);
+    expect(playsSound('wait')).toBe(false);
   });
 });

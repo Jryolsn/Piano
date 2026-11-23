@@ -3,10 +3,14 @@ export interface DetectionResult {
   match: boolean;
   /** 0..1 */
   confidence: number;
+  /** Candidate notes that sounded in this frame, whether expected or not. */
+  heard?: readonly number[];
 }
 
 /** Verifies expected notes against an audio frame. Implementations are swappable for comparison. */
 export interface Detector {
-  detect(frame: Float32Array, sampleRate: number, expectedMidi: readonly number[]): DetectionResult;
+  detect(frame: Float32Array, sampleRate: number, expectedMidi: readonly number[],
+    candidates?: readonly number[],
+  ): DetectionResult;
   reset(): void;
 }
