@@ -42,5 +42,10 @@ build config only. No fix is available yet; it does not ship in the app.
 
 ## Assets
 
+**Piano samples** (`public/samples/piano/`): Salamander Grand Piano V2 (Yamaha C5) by Alexander Holm,
+licensed CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/). Taken from the Tone.js audio
+repository (https://github.com/Tonejs/audio), converted to short mono MP3 files, every third note
+kept. Changes: shortened, faded out, re-encoded.
+
 Built-in songs (`src/song/builtin.ts`) are public-domain melodies (traditional, Beethoven, Petzold,
 Pierpont) in the project's own simple arrangements, under the project's MIT license.

@@ -43,23 +43,46 @@ export function usesMic(mode: SongMode): boolean {
   return mode !== 'play';
 }
 
-const MODE_KEY = 'pianoapp.songMode';
+/** The app sounds the song only when the mic is off, so the detector never hears the app itself. */
+export function playsSound(mode: SongMode, soundOn: boolean): boolean {
+  return soundOn && !usesMic(mode);
+}
 
-/** Last chosen mode, so it is preselected next time. Storage may be unavailable (private mode). */
+const MODE_KEY = 'pianoapp.songMode';
+const SOUND_KEY = 'pianoapp.sound';
+
+/** Last chosen mode, so it is preselected next time. */
 export function loadSongMode(storage?: Pick<Storage, 'getItem'>): SongMode {
-  try {
-    const v = (storage ?? globalThis.localStorage)?.getItem(MODE_KEY);
-    if (songModes.some((m) => m.value === v)) return v as SongMode;
-  } catch {
-    // Fall through to the default.
-  }
-  return defaultSettings.mode;
+  const v = read(MODE_KEY, storage);
+  return songModes.some((m) => m.value === v) ? (v as SongMode) : defaultSettings.mode;
 }
 
 export function saveSongMode(mode: SongMode, storage?: Pick<Storage, 'setItem'>): void {
+  write(MODE_KEY, mode, storage);
+}
+
+/** Whether the song is heard in "Spela med"; on unless turned off. */
+export function loadSound(storage?: Pick<Storage, 'getItem'>): boolean {
+  return read(SOUND_KEY, storage) !== 'off';
+}
+
+export function saveSound(on: boolean, storage?: Pick<Storage, 'setItem'>): void {
+  write(SOUND_KEY, on ? 'on' : 'off', storage);
+}
+
+// Storage may be unavailable (private mode); then nothing is remembered.
+function read(key: string, storage?: Pick<Storage, 'getItem'>): string | null {
   try {
-    (storage ?? globalThis.localStorage)?.setItem(MODE_KEY, mode);
+    return (storage ?? globalThis.localStorage)?.getItem(key) ?? null;
   } catch {
-    // Not remembering the mode is fine.
+    return null;
+  }
+}
+
+function write(key: string, value: string, storage?: Pick<Storage, 'setItem'>): void {
+  try {
+    (storage ?? globalThis.localStorage)?.setItem(key, value);
+  } catch {
+    // Not remembering is fine.
   }
 }
