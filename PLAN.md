@@ -13,11 +13,11 @@ En gratis app med öppen källkod för att lära sig spela piano, i stil med Art
 1. **Låtbibliotek** med inbyggda låtar och import av egna MIDI-filer.
 2. **Lugn notvy** med fallande noter (piano roll) och lång, inställbar framförhållning (antal sekunder framåt). Vyn ska vara mjuk och avskalad, med minimalt UI medan man spelar.
 3. **Tre låtlägen** (se *Låtlägen* nedan):
-   - *Spela med:* noterna rullar i tempo, mikrofonen används inte.
-   - *Spela och lyssna:* noterna rullar i tempo, appen lyssnar och visar vad som träffades, utan att stanna.
-   - *Vänta på mig:* låten står still tills rätt ton eller ackord spelas.
+   - *Lyssna:* låten spelas som pianoljud, mikrofonen används inte.
+   - *Spela med:* noterna rullar i tempo, appen lyssnar och visar vad som träffades, utan att stanna.
+   - *Vänta:* låten står still tills rätt ton eller ackord spelas.
    - Tempot går att justera (25–150 %) i alla lägen.
-4. **Spolning:** dra bakåt och framåt i låten och fortsätt därifrån. Det ska också gå att loopa ett avsnitt.
+4. **Spolning:** dra bakåt och framåt i låten, med reglaget eller direkt på notbrädet, och fortsätt därifrån. Det ska också gå att loopa ett avsnitt.
 5. **Träffsäker mikrofondetektering**, även för ackord.
 6. **Välja hand:** öva vänster, höger eller båda händerna.
 
@@ -101,21 +101,23 @@ Principer:
 ## Låtlägen (2026-11-21)
 
 **Val av läge (UX):**
-- När en låt öppnas, och varje gång den står stilla i början, visas tre stora knappar med text och en enkel ikon: *Spela med*, *Spela och lyssna*, *Vänta på mig*. Ett tryck startar låten i det läget.
+- När en låt öppnas, och varje gång den står stilla i början, visas tre kort med linjeikon, namn och en kort rad: *Lyssna*, *Spela med*, *Vänta*. Ett tryck startar låten i det läget.
 - Valet sparas och är förvalt nästa gång. Under spelning syns bara noterna och tangenterna. Läget kan bytas i den infällda inställningspanelen.
-- Lägena med mikrofon frågar om behörighet vid första start. Nekas den visas en kort rad och låten går i *Spela med*.
-- Standard för nya användare: *Vänta på mig*, eftersom det är lättast att lära sig en låt så.
+- Lägena med mikrofon frågar om behörighet vid första start. Nekas den visas en kort rad och låten går i *Lyssna*.
+- Standard för nya användare: *Vänta*, eftersom det är lättast att lära sig en låt så.
 
 **Återkoppling i *Spela och lyssna*:** en träffad ton lyser grönt på tangenten och noten blir fylld. En missad ton bleknar när den passerat linjen, utan rött och utan ljud. När låten är slut visas en enda rad, till exempel "12 av 15 rätt", med knapparna *Igen* och *Tillbaka*.
 
 **Motor (`engine/`):**
 - `PracticeMode` behålls som tidslogik: `wait` eller `flow` (byter namn från `tempo`, som var förvirrande när tempot gäller alla lägen).
-- Nytt `listening: boolean` i `PracticeOptions`. UI-lägena mappas så här: *Spela med* = `flow` + av, *Spela och lyssna* = `flow` + på, *Vänta på mig* = `wait` + på.
+- Nytt `listening: boolean` i `PracticeOptions`. UI-lägena (`SongMode`: `listen`, `along`, `wait`) mappas så här: *Lyssna* = `flow` + av, *Spela med* = `flow` + på, *Vänta* = `wait` + på. Ljudet i högtalaren hörs bara i *Lyssna*.
 - Ny `StepResult = 'pending' | 'hit' | 'missed'` per steg. `reportMatch()` sätter `hit`, och ett steg som passerar sent-fönstret i `flow` med `listening` sätter `missed`. `seek`, loop-varv och byte av hand nollställer resultaten från positionen och framåt.
 - `results()` och `summary()` (träffade / totalt) för notvyn och slutraden. Allt testas med fake clock.
 - Ljudsidan ändras inte: `PracticeListener` driver motorn via `PracticeTarget`, och detektorn bakom `Detector`-gränssnittet kan bytas. Mikrofonen startas av UI:t bara när `listening` är på.
 
-**Senare:** visa *vilken* fel ton som spelades. Det kräver transkription, inte bara verifiering, och väntar på detektorarbetet (`pitchy` för enstaka toner är en kandidat).
+**Glow och felmarkering (2026-11-23):** en rätt spelad ton får glow på tangenten och noten så länge noten ska ljuda. Spelas en annan ton visas en liten markering på just den tangenten (korall), men bara den rätta får glow. `FftVerifier.detect` tar nu en lista kandidattoner (tangenterna på skärmen) och returnerar `heard`: de som just anslagits, med samma krav som för förväntade toner. Toner som är överton till en lägre ton som inte efterfrågades filtreras bort. Markeringen ligger kvar ca 0,5 s. Detta är best effort och kan ge enstaka falska markeringar.
+
+**Spola på brädet (2026-11-23):** dra upp/ned på notbrädet eller använd mushjul. Innehållet följer fingret: drag nedåt = framåt i låten. Låten pausas under dragningen och fortsätter när man släpper om den spelade. Ett kort tryck utan dragning pausar som förut. Avstånd räknas av `dragToSeconds` (`render/timeline.ts`) utifrån framförhållningen.
 
 ## Faser
 
@@ -140,7 +142,7 @@ Principer:
 
 ### Fas 3 – Förfining
 - [ ] Kalibrering (brusgolv och nivå per oktav)
-- [x] Låten hörs som flygelljud i *Spela med* (se Status 2026-11-23)
+- [x] Låten hörs som flygelljud i *Lyssna* (se Status 2026-11-23)
 - [ ] Metronom
 - [ ] Sparade framsteg per låt
 - [ ] iOS-bygge
@@ -177,7 +179,8 @@ Principer:
 - Övningsläget använder nu `FftVerifier` med en brusgräns som anpassar sig till rummet. `SpectralDetector` är borttagen.
 
 - Repot är förberett för att växla mellan Claude-appen, Claude Code, andra AI-verktyg och manuell kodning i en IDE (2026-11-21): `AGENT.md` (läses av Claude Code via `CLAUDE.md`), `BACKLOG.md` för idéer och saker att fixa, `dev-tickets/` för planer per arbete, `.editorconfig`, `.nvmrc` och rekommenderade VS Code-tillägg.
-- Tre låtlägen (2026-11-21): *Spela med*, *Spela och lyssna* och *Vänta på mig*, se *Låtlägen*.
+- Tre låtlägen (2026-11-21), omdöpta 2026-11-23 till *Lyssna*, *Spela med* och *Vänta*, se *Låtlägen*.
+- 2026-11-23: nya lägen och namn, glow och felmarkering, spola genom att dra på notbrädet. Ljudknappen är borttagen eftersom ljud bara hörs i *Lyssna*.
 
 **Nästa steg:** Jerry testar övningsläget med riktigt piano. Sedan bättre bas (längre fönster eller CQT) och Capacitor-spiken (del 2).
 - Pianoljud (2026-11-23, bara vald hand hörs): i *Spela med* spelas låtens noter som samplad flygel (Salamander Grand Piano, CC-BY 3.0) i takt med notvyn, och tryck på tangenterna låter också. `audio/piano.ts` laddar 30 samples (var tredje halvton, mono mp3, 1,5 MB, i `public/samples/piano/`) och höjer eller sänker närmaste sample med uppspelningshastighet. `audio/song-player.ts` schemalägger noter ca 100 ms framåt på ljudklockan och drar av enhetens utlatens. Ljudet är avstängt i lägena med mikrofon, så detektorn inte hör appen. Ett högtalarmärke på spelskärmen slår av och på ljudet i *Spela med*.

@@ -67,3 +67,18 @@ describe('PracticeListener', () => {
     expect(t.reported).toBe(3);
   });
 });
+
+describe('PracticeListener heard notes', () => {
+  it('reports what the detector heard, also when nothing is expected', () => {
+    const detector: Detector = {
+      detect: (_f, _sr, _e, candidates) => ({ match: false, confidence: 0, heard: candidates?.slice(0, 1) ?? [] }),
+      reset: () => {},
+    };
+    const l = new PracticeListener(detector);
+    l.setCandidates([62, 64]);
+    l.process(frame(true), 48000, target([]));
+    expect(l.heard).toEqual([62]);
+    l.reset();
+    expect(l.heard).toEqual([]);
+  });
+});

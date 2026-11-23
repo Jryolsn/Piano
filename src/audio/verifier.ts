@@ -52,6 +52,18 @@ export const DEFAULT_VERIFIER_OPTIONS: VerifierOptions = {
   contrastDb: 10,
 };
 
+/** Per-frame values shared by all note checks. */
+interface FrameContext {
+  db: Float32Array;
+  past: Float32Array[];
+  binHz: number;
+  threshold: number;
+  loudEnough: number;
+}
+
+/** Semitone distances to the 2nd to 4th overtone of a lower note. */
+const OVERTONE_INTERVALS = [12, 19, 24];
+
 interface NoteLevel {
   score: number;
   /** Strongest harmonic level, dB. */
@@ -79,32 +91,25 @@ export class FftVerifier implements Detector {
     this.options = { ...DEFAULT_VERIFIER_OPTIONS, ...options };
   }
 
-  detect(frame: Float32Array, sampleRate: number, expectedMidi: readonly number[]): DetectionResult {
+  detect(
+    frame: Float32Array,
+    sampleRate: number,
+    expectedMidi: readonly number[],
+    candidates: readonly number[] = [],
+  ): DetectionResult {
     const db = spectrumDb(frame);
     const past = this.history;
     this.history = [...past.slice(1 - this.options.historyFrames), db];
     const binHz = sampleRate / frame.length;
     const { floor, max } = stats(db, binHz, this.options.maxHz);
     this.trackAmbient(max);
-    if (expectedMidi.length === 0) return { match: false, confidence: 0 };
 
-    if (max < this.gate()) return { match: false, confidence: 0 };
-    const threshold = floor + this.options.prominenceDb;
-    const loudEnough = max - this.options.relativeDb;
+    if (max < this.gate()) return { match: false, confidence: 0, heard: [] };
+    const ctx: FrameContext = { db, past, binHz, threshold: floor + this.options.prominenceDb, loudEnough: max - this.options.relativeDb };
 
-    let confidence = 1;
-    for (const midi of expectedMidi) {
-      const now = this.noteLevel(db, binHz, threshold, midi);
-      let score = now.score;
-      if (now.level < loudEnough) score = Math.min(score, 0.4);
-      const minPast = Math.min(...past.map((p) => this.noteLevel(p, binHz, -Infinity, midi).level));
-      if (past.length > 0 && now.level - minPast < this.options.riseDb) score = Math.min(score, 0.4);
-      if (!expectedMidi.includes(midi - 12) && this.subOctaveSounds(db, binHz, threshold, midi, now.level)) {
-        score = Math.min(score, 0.4);
-      }
-      confidence = Math.min(confidence, score);
-    }
-    return { match: confidence >= 0.5, confidence };
+    let confidence = expectedMidi.length === 0 ? 0 : 1;
+    for (const midi of expectedMidi) confidence = Math.min(confidence, this.scoreNote(ctx, midi, expectedMidi));
+    return { match: expectedMidi.length > 0 && confidence >= 0.5, confidence, heard: this.heardNotes(ctx, candidates, expectedMidi) };
   }
 
   /** Clears note history. The ambient estimate is kept, since the room doesn't change between steps. */
@@ -124,6 +129,28 @@ export class FftVerifier implements Detector {
     // No quiet stretch measured yet: only the fixed gate applies.
     if (this.ambient === Infinity) return this.options.noiseGateDb;
     return Math.max(this.options.noiseGateDb, this.ambient + this.options.ambientMarginDb);
+  }
+
+  /** Confidence (0..1) that `midi` was just struck; at least 0.5 counts as heard. */
+  private scoreNote(ctx: FrameContext, midi: number, expectedMidi: readonly number[]): number {
+    const { db, past, binHz, threshold, loudEnough } = ctx;
+    const now = this.noteLevel(db, binHz, threshold, midi);
+    let score = now.score;
+    if (now.level < loudEnough) score = Math.min(score, 0.4);
+    // Cheap checks first: the history comparison costs one pass per past frame.
+    if (score < 0.5) return score;
+    const minPast = Math.min(...past.map((p) => this.noteLevel(p, binHz, -Infinity, midi).level));
+    if (past.length > 0 && now.level - minPast < this.options.riseDb) score = Math.min(score, 0.4);
+    if (!expectedMidi.includes(midi - 12) && this.subOctaveSounds(db, binHz, threshold, midi, now.level)) {
+      score = Math.min(score, 0.4);
+    }
+    return score;
+  }
+
+  /** Candidates that were just struck. Overtones of a lower note that was not asked for are dropped. */
+  private heardNotes(ctx: FrameContext, candidates: readonly number[], expectedMidi: readonly number[]): number[] {
+    const struck = candidates.filter((m) => this.scoreNote(ctx, m, expectedMidi) >= 0.5);
+    return struck.filter((m) => expectedMidi.includes(m) || !OVERTONE_INTERVALS.some((i) => struck.includes(m - i)));
   }
 
   private noteLevel(db: Float32Array, binHz: number, threshold: number, midi: number): NoteLevel {

@@ -23,6 +23,8 @@ export class PracticeListener {
   private lastPlayed: readonly number[] = [];
   private needsOnset = false;
   private quietest = Infinity;
+  private candidates: readonly number[] = [];
+  private lastHeard: readonly number[] = [];
 
   constructor(
     private readonly detector: Detector,
@@ -37,10 +39,12 @@ export class PracticeListener {
     const expected = target.expected();
     const key = expected.join(',');
     if (key !== this.stepKey) this.startStep(key, expected);
-    if (expected.length === 0) return false;
 
     // Always feed the detector so stateful detectors keep their history and room estimate.
-    const match = this.detector.detect(frame, sampleRate, expected).match;
+    const result = this.detector.detect(frame, sampleRate, expected, this.candidates);
+    this.lastHeard = result.heard ?? [];
+    if (expected.length === 0) return false;
+    const match = result.match;
 
     if (this.needsOnset) {
       const level = levelDb(frame);
@@ -58,6 +62,16 @@ export class PracticeListener {
     return true;
   }
 
+  /** Notes the detector heard in the latest frame, right or wrong. */
+  get heard(): readonly number[] {
+    return this.lastHeard;
+  }
+
+  /** Notes the detector should look for besides the expected ones, e.g. the keys on screen. */
+  setCandidates(midi: readonly number[]): void {
+    this.candidates = midi;
+  }
+
   /** Notes of the step most recently reported as played. */
   get played(): readonly number[] {
     return this.lastPlayed;
@@ -67,6 +81,7 @@ export class PracticeListener {
     this.stepKey = '';
     this.streak = 0;
     this.lastPlayed = [];
+    this.lastHeard = [];
     this.needsOnset = false;
     this.detector.reset();
   }

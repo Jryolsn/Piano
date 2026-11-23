@@ -7,9 +7,11 @@
   import { FftVerifier } from '../../audio/verifier';
   import { PracticeSession, type LoopRange } from '../../engine/practice';
   import type { RollFrame } from '../../render/roll';
+  import { keyRangeFor } from '../../render/keyboard';
   import { createKeepAwake } from '../../platform/keep-awake';
   import type { Song } from '../../song/model';
   import RollCanvas from './RollCanvas.svelte';
+  import ModePicker from './ModePicker.svelte';
   import SettingsPanel from './SettingsPanel.svelte';
   import {
     defaultSettings,
@@ -17,11 +19,8 @@
     formatTime,
     handsFor,
     loadSongMode,
-    loadSound,
     playsSound,
     saveSongMode,
-    saveSound,
-    songModes,
     usesMic,
     type PracticeSettings,
     type SongMode,
@@ -41,7 +40,11 @@
   let playing = $state(false);
   let pressed = $state<number[]>([]);
   let mic = $state<'off' | 'starting' | 'on' | 'error'>('off');
-  let soundOn = $state(loadSound());
+  /** The song was playing when the user started dragging the notes, so it resumes on release. */
+  let resumeAfterScrub = $state(false);
+  let scrubbing = false;
+  let heardKeys: readonly number[] = [];
+  let heardUntil = 0;
   let hitKeys: readonly number[] = [];
   let hitUntil = 0;
   let micSource: FrameSource | null = null;
@@ -51,7 +54,7 @@
   const session = $derived(new PracticeSession(song));
   // Only the practiced hand is heard.
   const player = $derived(new SongPlayer(song.notes.filter((n) => handsFor(settings.hand).includes(n.hand)), piano));
-  const audible = $derived(playsSound(settings.mode, soundOn));
+  const audible = $derived(playsSound(settings.mode));
 
   $effect(() => {
     session.setOptions({
@@ -64,11 +67,22 @@
     piano.stopAll();
   });
 
+  $effect(() => {
+    const { low, high } = keyRangeFor(song.notes);
+    listener.setCandidates(Array.from({ length: high - low + 1 }, (_, i) => low + i));
+  });
+
   function frame(dt: number): RollFrame {
     const s = untrack(() => session);
     s.tick(dt);
     untrack(() => player.update(s.time, s.options.tempo, s.playing && audible));
-    if (micSource && listener.process(micSource.read(), micSource.sampleRate, s)) flashHit(listener.played);
+    if (micSource) {
+      if (listener.process(micSource.read(), micSource.sampleRate, s)) flashHit(listener.played);
+      if (listener.heard.length > 0) {
+        heardKeys = listener.heard;
+        heardUntil = performance.now() + HEARD_MARKER_MS;
+      }
+    }
     time = s.time;
     playing = s.playing;
     return {
@@ -76,13 +90,16 @@
       lookahead: untrack(() => settings.lookahead),
       hands: s.options.hands,
       expected: s.waiting ? s.expected() : undefined,
-      pressed: untrack(() => pressed),
+      pressed: untrack(() => (performance.now() < heardUntil ? [...pressed, ...heardKeys] : pressed)),
+      judged: untrack(() => usesMic(settings.mode)),
       hit: performance.now() < hitUntil ? hitKeys : undefined,
       resultOf: (n) => s.resultOf(n),
     };
   }
 
-  /** How long a correctly played key lights up. */
+  /** How long a key heard by the mic stays marked. */
+  const HEARD_MARKER_MS = 500;
+  /** How long a correctly played key lights up at least. */
   const HIT_FLASH_MS = 400;
 
   function flashHit(midi: readonly number[]) {
@@ -121,9 +138,21 @@
     player.reset();
   }
 
-  function toggleSound() {
-    soundOn = !soundOn;
-    saveSound(soundOn);
+  /** Dragging the notes moves the song; it stays paused meanwhile and resumes if it was playing. */
+  function scrub(phase: 'start' | 'move' | 'end', seconds = 0) {
+    if (phase === 'start') {
+      scrubbing = true;
+      resumeAfterScrub = session.playing;
+      session.pause();
+      playing = false;
+    } else if (phase === 'move') {
+      if (scrubbing) seek(session.time + seconds);
+    } else if (scrubbing) {
+      scrubbing = false;
+      const resume = resumeAfterScrub && session.time < song.duration;
+      resumeAfterScrub = false;
+      if (resume) togglePlay();
+    }
   }
 
   /** Must run from a user gesture: browsers only allow audio and mic access then. */
@@ -137,7 +166,7 @@
     } catch {
       // Without the mic the song still runs, just without listening.
       mic = 'error';
-      settings.mode = 'play';
+      settings.mode = 'listen';
     }
   }
 
@@ -207,18 +236,19 @@
 </script>
 
 <div class="screen">
-  <RollCanvas notes={song.notes} {frame} onKeyDown={keyDown} onKeyUp={keyUp} onTap={() => playing && togglePlay()} />
+  <RollCanvas
+    notes={song.notes}
+    {frame}
+    lookahead={settings.lookahead}
+    onKeyDown={keyDown}
+    onKeyUp={keyUp}
+    onTap={() => playing && togglePlay()}
+    onScrub={scrub}
+  />
 
-  {#snippet soundButton(cls: string)}
-    <button class="round {cls}" class:off={!soundOn} onclick={toggleSound} aria-label={soundOn ? 'Stäng av ljud' : 'Sätt på ljud'}>
-      {soundOn ? '🔊' : '🔇'}
-    </button>
-  {/snippet}
-
-  {#if playing}
+  {#if playing || resumeAfterScrub}
     <!-- While playing only the notes and keys are shown; tap anywhere above the keys to pause. -->
     <div class="corner">
-      {#if !usesMic(settings.mode)}{@render soundButton('faint')}{/if}
       <button class="round faint" onclick={togglePlay} aria-label="Pausa">❚❚</button>
     </div>
   {:else}
@@ -238,7 +268,6 @@
         aria-label="Position i låten"
       />
       <span class="time">{formatTime(song.duration)}</span>
-      {#if !usesMic(settings.mode)}{@render soundButton('')}{/if}
       <button class="round" class:on={panelOpen} onclick={() => (panelOpen = !panelOpen)} aria-label="Inställningar">
         ⚙
       </button>
@@ -246,7 +275,7 @@
 
     {#if ended}
       <div class="center">
-        <p class="title">{summary && summary.hit + summary.missed > 0 && settings.mode === 'listen'
+        <p class="title">{summary && summary.hit + summary.missed > 0 && settings.mode === 'along'
             ? `${summary.hit} av ${summary.hit + summary.missed} rätt`
             : 'Klart!'}</p>
         <div class="choices">
@@ -257,13 +286,7 @@
     {:else if atStart}
       <div class="center">
         <p class="title">{song.title}</p>
-        <div class="choices">
-          {#each songModes as m (m.value)}
-            <button class="choice" class:on={settings.mode === m.value} onclick={() => start(m.value)}>
-              <span class="icon" aria-hidden="true">{m.icon}</span>{m.label}
-            </button>
-          {/each}
-        </div>
+        <ModePicker selected={settings.mode} onPick={start} />
         {#if mic === 'error'}<p class="note">Mikrofonen gick inte att starta. Låten spelas utan att lyssna.</p>{/if}
       </div>
     {:else}
@@ -323,9 +346,6 @@
   .round.on {
     background: #3d5f80;
   }
-  .round.off {
-    opacity: 0.6;
-  }
   .corner {
     position: absolute;
     top: max(10px, env(safe-area-inset-top));
@@ -380,38 +400,6 @@
     justify-items: center;
     gap: 14px;
     width: min(560px, calc(100vw - 32px));
-  }
-  .choices {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 10px;
-    width: 100%;
-  }
-  .choice {
-    flex: 1 1 140px;
-    display: grid;
-    justify-items: center;
-    align-content: center;
-    gap: 6px;
-    min-height: 88px;
-    padding: 12px;
-    border: 0;
-    border-radius: 16px;
-    background: rgba(42, 46, 55, 0.95);
-    color: inherit;
-    font: inherit;
-    font-size: 17px;
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
-    cursor: pointer;
-  }
-  .choice.on {
-    background: #5b9bd5;
-    color: #10131a;
-  }
-  .icon {
-    font-size: 24px;
-    line-height: 1;
   }
   .note {
     margin: 0;
