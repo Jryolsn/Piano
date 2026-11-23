@@ -49,7 +49,8 @@
   const piano = new Piano();
 
   const session = $derived(new PracticeSession(song));
-  const player = $derived(new SongPlayer(song.notes, piano));
+  // Only the practiced hand is heard.
+  const player = $derived(new SongPlayer(song.notes.filter((n) => handsFor(settings.hand).includes(n.hand)), piano));
   const audible = $derived(playsSound(settings.mode, soundOn));
 
   $effect(() => {
@@ -60,6 +61,7 @@
       loop,
     });
     listener.reset();
+    piano.stopAll();
   });
 
   function frame(dt: number): RollFrame {
