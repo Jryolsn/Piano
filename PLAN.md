@@ -180,7 +180,7 @@ Principer:
 - Tre låtlägen (2026-11-21): *Spela med*, *Spela och lyssna* och *Vänta på mig*, se *Låtlägen*.
 
 **Nästa steg:** Jerry testar övningsläget med riktigt piano. Sedan bättre bas (längre fönster eller CQT) och Capacitor-spiken (del 2).
-- Pianoljud (2026-11-23): i *Spela med* spelas låtens noter som samplad flygel (Salamander Grand Piano, CC-BY 3.0) i takt med notvyn, och tryck på tangenterna låter också. `audio/piano.ts` laddar 30 samples (var tredje halvton, mono mp3, 1,5 MB, i `public/samples/piano/`) och höjer eller sänker närmaste sample med uppspelningshastighet. `audio/song-player.ts` schemalägger noter ca 100 ms framåt på ljudklockan och drar av enhetens utlatens. Ljudet är avstängt i lägena med mikrofon, så detektorn inte hör appen. Ett högtalarmärke på spelskärmen slår av och på ljudet i *Spela med*.
+- Pianoljud (2026-11-23, bara vald hand hörs): i *Spela med* spelas låtens noter som samplad flygel (Salamander Grand Piano, CC-BY 3.0) i takt med notvyn, och tryck på tangenterna låter också. `audio/piano.ts` laddar 30 samples (var tredje halvton, mono mp3, 1,5 MB, i `public/samples/piano/`) och höjer eller sänker närmaste sample med uppspelningshastighet. `audio/song-player.ts` schemalägger noter ca 100 ms framåt på ljudklockan och drar av enhetens utlatens. Ljudet är avstängt i lägena med mikrofon, så detektorn inte hör appen. Ett högtalarmärke på spelskärmen slår av och på ljudet i *Spela med*.
 
 ## Beslutslogg
 
