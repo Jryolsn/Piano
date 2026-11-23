@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { RollRenderer, type RollFrame } from '../../render/roll';
   import { dragToSeconds } from '../../render/timeline';
+  import { isTap, TAP_MAX_DISTANCE } from './gestures';
   import type { Note } from '../../song/model';
 
   interface Props {
@@ -12,7 +13,7 @@
     onKeyUp?: (midi: number) => void;
     /** Seconds visible above the hit line, which sets how far a drag moves the song. */
     lookahead: number;
-    /** Tap on the note area (above the keyboard). */
+    /** Short tap on the note area (above the keyboard); never fires for a drag or a long press. */
     onTap?: () => void;
     /** Dragging or wheeling over the note area: `start`, then `move` with the song seconds to shift by, then `end`. */
     onScrub?: (phase: 'start' | 'move' | 'end', seconds?: number) => void;
@@ -22,15 +23,13 @@
   /** Key held by each active pointer, so multi-touch chords work. */
   const held = new Map<number, number>();
 
-  /** Finger or mouse movement beyond this many pixels is a drag, not a tap. */
-  const DRAG_THRESHOLD = 8;
   /** Wheel lines are converted to pixels with this factor. */
   const WHEEL_LINE_PX = 16;
   /** The wheel counts as released after this many ms without events. */
   const WHEEL_IDLE_MS = 180;
 
   /** The pointer dragging the note area, if any. */
-  let drag: { id: number; startY: number; lastY: number; moved: boolean } | null = null;
+  let drag: { id: number; startX: number; startY: number; lastY: number; startedAt: number; moved: boolean } | null = null;
   let wheelTimer: ReturnType<typeof setTimeout> | undefined;
 
   function secondsFor(dy: number): number {
@@ -42,7 +41,14 @@
     const midi = renderer?.keyAt(e.clientX - rect.left, e.clientY - rect.top);
     canvas.setPointerCapture(e.pointerId);
     if (midi == null) {
-      drag ??= { id: e.pointerId, startY: e.clientY, lastY: e.clientY, moved: false };
+      drag ??= {
+        id: e.pointerId,
+        startX: e.clientX,
+        startY: e.clientY,
+        lastY: e.clientY,
+        startedAt: e.timeStamp,
+        moved: false,
+      };
       return;
     }
     held.set(e.pointerId, midi);
@@ -52,7 +58,7 @@
   function pointerMove(e: PointerEvent) {
     if (!drag || drag.id !== e.pointerId) return;
     if (!drag.moved) {
-      if (Math.abs(e.clientY - drag.startY) < DRAG_THRESHOLD) return;
+      if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) < TAP_MAX_DISTANCE) return;
       drag.moved = true;
       onScrub?.('start');
     }
@@ -62,10 +68,10 @@
 
   function pointerUp(e: PointerEvent) {
     if (drag?.id === e.pointerId) {
-      const { moved } = drag;
+      const { moved, startX, startY, startedAt } = drag;
       drag = null;
       if (moved) onScrub?.('end');
-      else if (e.type === 'pointerup') onTap?.();
+      else if (e.type === 'pointerup' && isTap(e.clientX - startX, e.clientY - startY, e.timeStamp - startedAt)) onTap?.();
       return;
     }
     const midi = held.get(e.pointerId);

@@ -13,6 +13,8 @@
   import RollCanvas from './RollCanvas.svelte';
   import ModePicker from './ModePicker.svelte';
   import SettingsPanel from './SettingsPanel.svelte';
+  import ProgressBar from './ProgressBar.svelte';
+  import { setLoopFrom, setLoopTo, startLoop } from './loop';
   import {
     defaultSettings,
     engineModeFor,
@@ -200,12 +202,18 @@
     pressed = pressed.filter((m) => m !== midi);
   }
 
-  function setLoopStart() {
-    loop = { from: time, to: loop && loop.to > time ? loop.to : song.duration };
+  /** Tapping the note area toggles play and pause; at the start and the end the buttons choose what to do. */
+  function tapBoard() {
+    if (!atStart && !ended) togglePlay();
   }
 
-  function setLoopEnd() {
-    loop = { from: loop && loop.from < time ? loop.from : 0, to: time };
+  /** Opening the settings pauses the song; it stays paused when they close. */
+  function openSettings() {
+    if (session.playing) {
+      session.pause();
+      playing = false;
+    }
+    panelOpen = true;
   }
 
   onMount(() => {
@@ -242,14 +250,14 @@
     lookahead={settings.lookahead}
     onKeyDown={keyDown}
     onKeyUp={keyUp}
-    onTap={() => playing && togglePlay()}
+    onTap={tapBoard}
     onScrub={scrub}
   />
 
   {#if playing || resumeAfterScrub}
     <!-- While playing only the notes and keys are shown; tap anywhere above the keys to pause. -->
     <div class="corner">
-      <button class="round faint" onclick={togglePlay} aria-label="Pausa">❚❚</button>
+      <button class="round faint" onclick={openSettings} aria-label="Inställningar">⚙</button>
     </div>
   {:else}
     <div class="bar">
@@ -257,18 +265,9 @@
         <button class="round" onclick={onExit} aria-label="Tillbaka">‹</button>
       {/if}
       <span class="time">{formatTime(time)}</span>
-      <input
-        class="seek"
-        type="range"
-        min="0"
-        max={song.duration}
-        step="0.01"
-        value={time}
-        oninput={(e) => seek(e.currentTarget.valueAsNumber)}
-        aria-label="Position i låten"
-      />
+      <ProgressBar {time} duration={song.duration} {loop} onSeek={seek} onLoopChange={(l) => (loop = l)} />
       <span class="time">{formatTime(song.duration)}</span>
-      <button class="round" class:on={panelOpen} onclick={() => (panelOpen = !panelOpen)} aria-label="Inställningar">
+      <button class="round" class:on={panelOpen} onclick={() => (panelOpen ? (panelOpen = false) : openSettings())} aria-label="Inställningar">
         ⚙
       </button>
     </div>
@@ -299,8 +298,9 @@
         <SettingsPanel
           bind:settings
           {loop}
-          onSetLoopStart={setLoopStart}
-          onSetLoopEnd={setLoopEnd}
+          onLoopOn={() => (loop = startLoop(time, song.duration))}
+          onSetLoopStart={() => (loop = setLoopFrom(loop, time, song.duration))}
+          onSetLoopEnd={() => (loop = setLoopTo(loop, time, song.duration))}
           onClearLoop={() => (loop = null)}
         />
       </div>
@@ -411,12 +411,6 @@
     flex: none;
     font-variant-numeric: tabular-nums;
     color: #9c9a95;
-  }
-  .seek {
-    flex: 1;
-    min-width: 0;
-    height: 32px;
-    accent-color: #5b9bd5;
   }
   .panel {
     position: absolute;
