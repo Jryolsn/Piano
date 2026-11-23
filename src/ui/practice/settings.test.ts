@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { engineModeFor, formatTime, handsFor, loadSongMode, saveSongMode } from './settings';
+import {
+  engineModeFor,
+  formatTime,
+  handsFor,
+  loadSongMode,
+  loadSound,
+  playsSound,
+  saveSongMode,
+  saveSound,
+} from './settings';
 
 describe('handsFor', () => {
   it('maps the hand choice to engine hands', () => {
@@ -42,5 +51,24 @@ describe('song mode storage', () => {
       },
     };
     expect(loadSongMode(broken)).toBe('wait');
+  });
+});
+
+describe('sound', () => {
+  it('is only heard when the mic is off', () => {
+    expect(playsSound('play', true)).toBe(true);
+    expect(playsSound('play', false)).toBe(false);
+    expect(playsSound('listen', true)).toBe(false);
+    expect(playsSound('wait', true)).toBe(false);
+  });
+
+  it('is on by default and remembers being turned off', () => {
+    const data = new Map<string, string>();
+    const storage = { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v) };
+    expect(loadSound(storage)).toBe(true);
+    saveSound(false, storage);
+    expect(loadSound(storage)).toBe(false);
+    saveSound(true, storage);
+    expect(loadSound(storage)).toBe(true);
   });
 });

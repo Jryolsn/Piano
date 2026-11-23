@@ -1,7 +1,9 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
   import { createFrameSource, openMic, type FrameSource } from '../../audio/mic';
+  import { Piano } from '../../audio/piano';
   import { PracticeListener } from '../../audio/practice-listener';
+  import { SongPlayer } from '../../audio/song-player';
   import { FftVerifier } from '../../audio/verifier';
   import { PracticeSession, type LoopRange } from '../../engine/practice';
   import type { RollFrame } from '../../render/roll';
@@ -15,7 +17,10 @@
     formatTime,
     handsFor,
     loadSongMode,
+    loadSound,
+    playsSound,
     saveSongMode,
+    saveSound,
     songModes,
     usesMic,
     type PracticeSettings,
@@ -36,12 +41,16 @@
   let playing = $state(false);
   let pressed = $state<number[]>([]);
   let mic = $state<'off' | 'starting' | 'on' | 'error'>('off');
+  let soundOn = $state(loadSound());
   let hitKeys: readonly number[] = [];
   let hitUntil = 0;
   let micSource: FrameSource | null = null;
   const listener = new PracticeListener(new FftVerifier());
+  const piano = new Piano();
 
   const session = $derived(new PracticeSession(song));
+  const player = $derived(new SongPlayer(song.notes, piano));
+  const audible = $derived(playsSound(settings.mode, soundOn));
 
   $effect(() => {
     session.setOptions({
@@ -56,6 +65,7 @@
   function frame(dt: number): RollFrame {
     const s = untrack(() => session);
     s.tick(dt);
+    untrack(() => player.update(s.time, s.options.tempo, s.playing && audible));
     if (micSource && listener.process(micSource.read(), micSource.sampleRate, s)) flashHit(listener.played);
     time = s.time;
     playing = s.playing;
@@ -95,6 +105,7 @@
     else {
       if (usesMic(settings.mode) && mic !== 'on') void startMic();
       else if (!usesMic(settings.mode)) void stopMic();
+      void piano.resume();
       session.play();
     }
     playing = session.playing;
@@ -105,6 +116,12 @@
     session.seek(Math.min(song.duration, Math.max(0, to)));
     time = session.time;
     listener.reset();
+    player.reset();
+  }
+
+  function toggleSound() {
+    soundOn = !soundOn;
+    saveSound(soundOn);
   }
 
   /** Must run from a user gesture: browsers only allow audio and mic access then. */
@@ -129,12 +146,15 @@
     await src?.close();
   }
 
+  const TAP_NOTE_SECONDS = 1;
+
   /** Keys tapped recently count together, so chords can be tapped one key at a time with a mouse. */
   const CHORD_WINDOW_MS = 1500;
   const tappedAt = new Map<number, number>();
 
   function keyDown(midi: number) {
     pressed = [...pressed, midi];
+    if (audible) piano.play(midi, piano.currentTime, TAP_NOTE_SECONDS);
     const now = performance.now();
     tappedAt.set(midi, now);
     const expected = session.expected();
@@ -161,6 +181,8 @@
     // Keep the screen on for the whole song screen, also while paused between tries.
     const keepAwake = createKeepAwake();
     void keepAwake.acquire();
+    // Without samples (e.g. offline before the first load) the song simply runs silently.
+    piano.load().catch(() => {});
     function onKey(e: KeyboardEvent) {
       if (e.target instanceof HTMLInputElement && e.target.type !== 'range') return;
       if (e.code === 'Space') togglePlay();
@@ -177,6 +199,7 @@
       session.pause();
       void micSource?.close();
       micSource = null;
+      void piano.close();
     };
   });
 </script>
@@ -184,9 +207,18 @@
 <div class="screen">
   <RollCanvas notes={song.notes} {frame} onKeyDown={keyDown} onKeyUp={keyUp} onTap={() => playing && togglePlay()} />
 
+  {#snippet soundButton(cls: string)}
+    <button class="round {cls}" class:off={!soundOn} onclick={toggleSound} aria-label={soundOn ? 'Stäng av ljud' : 'Sätt på ljud'}>
+      {soundOn ? '🔊' : '🔇'}
+    </button>
+  {/snippet}
+
   {#if playing}
     <!-- While playing only the notes and keys are shown; tap anywhere above the keys to pause. -->
-    <button class="round pause" onclick={togglePlay} aria-label="Pausa">❚❚</button>
+    <div class="corner">
+      {#if !usesMic(settings.mode)}{@render soundButton('faint')}{/if}
+      <button class="round faint" onclick={togglePlay} aria-label="Pausa">❚❚</button>
+    </div>
   {:else}
     <div class="bar">
       {#if onExit}
@@ -204,6 +236,7 @@
         aria-label="Position i låten"
       />
       <span class="time">{formatTime(song.duration)}</span>
+      {#if !usesMic(settings.mode)}{@render soundButton('')}{/if}
       <button class="round" class:on={panelOpen} onclick={() => (panelOpen = !panelOpen)} aria-label="Inställningar">
         ⚙
       </button>
@@ -288,10 +321,17 @@
   .round.on {
     background: #3d5f80;
   }
-  .pause {
+  .round.off {
+    opacity: 0.6;
+  }
+  .corner {
     position: absolute;
     top: max(10px, env(safe-area-inset-top));
     right: max(10px, env(safe-area-inset-right));
+    display: flex;
+    gap: 10px;
+  }
+  .faint {
     font-size: 16px;
     background: rgba(42, 46, 55, 0.6);
     opacity: 0.5;

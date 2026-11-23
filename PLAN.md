@@ -83,7 +83,8 @@ Det klarar ackord, är snabbare och robustare än full transkription och kan kal
 ```
 src/
   audio/      mic.ts (getUserMedia, AudioWorklet), analysis.ts (FFT/CQT),
-              detector.ts (verifiering av förväntade toner), calibration.ts
+              detector.ts (verifiering av förväntade toner), calibration.ts,
+              piano.ts (samplat flygelljud), song-player.ts (noter på ljudklockan)
   song/       model.ts (Song, Note, Hand), midi.ts (import), library.ts
   engine/     practice.ts (vänta/tempo, position, seek, loop, hand) – ren logik, testbar med fake clock
   render/     roll.ts (fallande noter, framförhållning, keyboard)
@@ -139,7 +140,8 @@ Principer:
 
 ### Fas 3 – Förfining
 - [ ] Kalibrering (brusgolv och nivå per oktav)
-- [ ] Förhandslyssning på låten och metronom
+- [x] Låten hörs som flygelljud i *Spela med* (se Status 2026-11-23)
+- [ ] Metronom
 - [ ] Sparade framsteg per låt
 - [ ] iOS-bygge
 
@@ -178,6 +180,7 @@ Principer:
 - Tre låtlägen (2026-11-21): *Spela med*, *Spela och lyssna* och *Vänta på mig*, se *Låtlägen*.
 
 **Nästa steg:** Jerry testar övningsläget med riktigt piano. Sedan bättre bas (längre fönster eller CQT) och Capacitor-spiken (del 2).
+- Pianoljud (2026-11-23): i *Spela med* spelas låtens noter som samplad flygel (Salamander Grand Piano, CC-BY 3.0) i takt med notvyn, och tryck på tangenterna låter också. `audio/piano.ts` laddar 30 samples (var tredje halvton, mono mp3, 1,5 MB, i `public/samples/piano/`) och höjer eller sänker närmaste sample med uppspelningshastighet. `audio/song-player.ts` schemalägger noter ca 100 ms framåt på ljudklockan och drar av enhetens utlatens. Ljudet är avstängt i lägena med mikrofon, så detektorn inte hör appen. Ett högtalarmärke på spelskärmen slår av och på ljudet i *Spela med*.
 
 ## Beslutslogg
 
@@ -200,3 +203,4 @@ Principer:
 | 2026-11-21 | Basregistret (under C3) behöver längre analysfönster eller CQT. Diskanten fungerade vid fastare anslag. |
 | 2026-11-16 | Importerade låtar sparas lokalt i IndexedDB som tolkad `Song`, inte som rå MIDI. Inbyggda låtar skrivs i egen textnotation i koden. |
 | 2026-11-21 | Planer på två nivåer: `PLAN.md` för hela projektet, `dev-tickets/<ticket>/PLAN.md` för varje arbete enligt metoden i `dev-tickets/README.md`. Allt som behövs för att fortsätta ska stå i filerna, inte i en chatt. |
+| 2026-11-23 | Pianoljud: Web Audio direkt med egna sampleladdare, utan Tone.js eller smplr, för att hålla beroendena nere. Samples bundlas i appen så att det fungerar offline i APK:n och på Pages. Ljudet tystas i lyssnande lägen i stället för att filtreras bort ur mikrofonen. |
