@@ -1,4 +1,4 @@
-import type { StepResult } from '../engine/practice';
+import type { LoopRange, StepResult } from '../engine/practice';
 import type { Hand, Note } from '../song/model';
 import { isBlack, keyRangeFor, layoutKeys, type KeyRange, type KeyRect } from './keyboard';
 import { theme } from './theme';
@@ -19,6 +19,8 @@ export interface RollFrame {
   judged?: boolean;
   /** MIDI numbers just played correctly; flashed on the keyboard. */
   hit?: readonly number[];
+  /** Practiced loop; its start and end are marked as lines across the roll. */
+  loop?: LoopRange | null;
   /** Step result per note, for hit/missed feedback. */
   resultOf?: (note: Note) => StepResult | undefined;
 }
@@ -76,6 +78,7 @@ export class RollRenderer {
     ctx.fillRect(0, 0, w, h);
     this.drawLanes(hitY);
     const { sounding, lit } = this.drawNotes(frame, hitY);
+    if (frame.loop) this.drawLoop(frame, frame.loop, hitY);
     this.drawKeyboard(frame, hitY, keyboardHeight, sounding, lit);
   }
 
@@ -158,6 +161,29 @@ export class RollRenderer {
     ctx.fillStyle = theme.hitLine;
     ctx.fillRect(0, hitY - 1, this.cssWidth, 2);
     return { sounding, lit };
+  }
+
+  /** Dashed lines where the loop starts and ends, so the stop is seen coming. */
+  private drawLoop(frame: RollFrame, loop: LoopRange, hitY: number): void {
+    const { ctx, cssWidth: w } = this;
+    ctx.save();
+    ctx.strokeStyle = theme.loop;
+    ctx.fillStyle = theme.loop;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([10, 6]);
+    ctx.font = '600 12px system-ui, sans-serif';
+    ctx.textBaseline = 'bottom';
+    for (const [t, label, align] of [[loop.from, 'Start', 'left'], [loop.to, 'Stopp', 'right']] as const) {
+      const y = timeToY(t, frame.time, frame.lookahead, hitY);
+      if (y < 0 || y > hitY) continue;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+      ctx.textAlign = align;
+      ctx.fillText(label, align === 'left' ? 8 : w - 8, y - 4);
+    }
+    ctx.restore();
   }
 
   private drawKeyboard(frame: RollFrame, top: number, height: number, sounding: Map<number, Hand>, lit: Set<number>): void {

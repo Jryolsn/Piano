@@ -3,10 +3,13 @@
     builtinEntries,
     importedEntries,
     importMidiFile,
+    MAX_TITLE_LENGTH,
+    renameImported,
     type LibraryEntry,
     type SongStorage,
   } from '../../song/library';
   import { MidiImportError } from '../../song/midi';
+  import Icon from '../Icon.svelte';
 
   interface Props {
     storage: SongStorage;
@@ -27,6 +30,7 @@
   let imported = $state<LibraryEntry[]>([]);
   let error = $state('');
   let confirmDelete = $state<string>();
+  let renaming = $state<{ id: string; title: string }>();
   let fileInput: HTMLInputElement;
 
   $effect(() => {
@@ -58,6 +62,23 @@
     confirmDelete = undefined;
   }
 
+  async function saveRename() {
+    if (!renaming) return;
+    const { id, title } = renaming;
+    renaming = undefined;
+    try {
+      const updated = await renameImported(storage, id, title);
+      if (updated) imported = imported.map((e) => (e.id === id ? updated : e));
+    } catch {
+      error = 'Kunde inte byta namn.';
+    }
+  }
+
+  function focusSelect(input: HTMLInputElement) {
+    input.focus();
+    input.select();
+  }
+
   function meta(entry: LibraryEntry): string {
     const hands = new Set(entry.song.notes.map((n) => n.hand));
     const handText =
@@ -69,11 +90,31 @@
 
 {#snippet row(entry: LibraryEntry)}
   <li>
-    <button class="song" onclick={() => onselect(entry)}>
-      <span class="title">{entry.title}</span>
-      <span class="meta">{meta(entry)}</span>
-    </button>
-    {#if entry.source === 'imported'}
+    {#if renaming?.id === entry.id}
+      <form class="rename" onsubmit={(e) => (e.preventDefault(), saveRename())}>
+        <input
+          bind:value={renaming.title}
+          use:focusSelect
+          maxlength={MAX_TITLE_LENGTH}
+          aria-label="Nytt namn"
+          onkeydown={(e) => e.key === 'Escape' && (renaming = undefined)}
+        />
+        <button class="save" type="submit">Spara</button>
+      </form>
+    {:else}
+      <button class="song" onclick={() => onselect(entry)}>
+        <span class="title">{entry.title}</span>
+        <span class="meta">{meta(entry)}</span>
+      </button>
+    {/if}
+    {#if entry.source === 'imported' && renaming?.id !== entry.id}
+      <button
+        class="icon"
+        aria-label="Byt namn på {entry.title}"
+        onclick={() => ((renaming = { id: entry.id, title: entry.title }), (confirmDelete = undefined))}
+      >
+        <Icon name="edit" size={20} />
+      </button>
       {#if confirmDelete === entry.id}
         <button class="delete confirm" onclick={() => remove(entry.id)}>Ta bort?</button>
       {:else}
@@ -186,6 +227,39 @@
   .import:hover {
     color: var(--accent);
     border-color: var(--accent);
+  }
+  .icon {
+    display: grid;
+    place-items: center;
+    padding: 0 0.6rem;
+    color: var(--muted);
+  }
+  .icon:hover {
+    color: var(--accent);
+  }
+  .rename {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.8rem;
+  }
+  .rename input {
+    flex: 1;
+    min-width: 0;
+    padding: 0.6rem 0.7rem;
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    background: var(--bg);
+    color: var(--fg);
+    font: inherit;
+    font-size: 1.1rem;
+  }
+  .save {
+    padding: 0.6rem 0.9rem;
+    border-radius: 10px;
+    background: var(--accent);
+    color: var(--on-accent);
   }
   .delete {
     padding: 0 1rem;

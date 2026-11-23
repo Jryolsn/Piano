@@ -6,6 +6,8 @@ export const theme = {
   laneLine: 'rgba(255, 255, 255, 0.04)',
   octaveLine: 'rgba(255, 255, 255, 0.09)',
   hitLine: 'rgba(255, 255, 255, 0.25)',
+  /** Loop start and end lines on the roll and pins on the progress bar. */
+  loop: '#e8a94a',
   whiteKey: '#e9e7e2',
   blackKey: '#23262d',
   keyBorder: '#9a9894',
