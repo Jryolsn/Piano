@@ -5,12 +5,13 @@
   interface Props {
     settings: PracticeSettings;
     loop: LoopRange | null;
+    onLoopOn: () => void;
     onSetLoopStart: () => void;
     onSetLoopEnd: () => void;
     onClearLoop: () => void;
   }
 
-  let { settings = $bindable(), loop, onSetLoopStart, onSetLoopEnd, onClearLoop }: Props = $props();
+  let { settings = $bindable(), loop, onLoopOn, onSetLoopStart, onSetLoopEnd, onClearLoop }: Props = $props();
 
   const hands: { value: HandChoice; label: string }[] = [
     { value: 'left', label: 'Vänster' },
@@ -55,12 +56,18 @@
   </label>
 
   <fieldset>
-    <legend>Loop {#if loop}<output>{formatTime(loop.from)}–{formatTime(loop.to)}</output>{/if}</legend>
+    <legend>Upprepa ett avsnitt {#if loop}<output>{formatTime(loop.from)}–{formatTime(loop.to)}</output>{/if}</legend>
     <div class="segmented">
-      <button onclick={onSetLoopStart}>Start här</button>
-      <button onclick={onSetLoopEnd}>Slut här</button>
-      <button onclick={onClearLoop} disabled={!loop}>Ta bort</button>
+      <button class:on={!loop} onclick={onClearLoop}>Av</button>
+      <button class:on={!!loop} onclick={() => !loop && onLoopOn()}>På</button>
     </div>
+    {#if loop}
+      <div class="segmented more">
+        <button onclick={onSetLoopStart}>Start här</button>
+        <button onclick={onSetLoopEnd}>Slut här</button>
+      </div>
+      <p class="hint">Dra i de orange handtagen i tidslisten för att justera.</p>
+    {/if}
   </fieldset>
 </div>
 
@@ -119,8 +126,12 @@
     background: #5b9bd5;
     color: #10131a;
   }
-  .segmented button:disabled {
-    opacity: 0.4;
-    cursor: default;
+  .more {
+    margin-top: 4px;
+  }
+  .hint {
+    margin: 8px 0 0;
+    font-size: 13px;
+    color: #9c9a95;
   }
 </style>
