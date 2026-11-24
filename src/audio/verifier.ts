@@ -7,6 +7,8 @@ export interface VerifierOptions {
   prominenceDb: number;
   /** A note's strongest harmonic must lie within this many dB of the frame's strongest peak. */
   relativeDb: number;
+  /** Extra `relativeDb` allowed per further note in a chord, since fingers press unevenly. */
+  chordRelativeDb: number;
   /** Frames whose strongest peak is below this level (spectrum dB) are treated as silence. */
   noiseGateDb: number;
   /**
@@ -27,6 +29,8 @@ export interface VerifierOptions {
   maxHz: number;
   /** Above this fundamental the phone mic reliably picks up h1, so it is required. */
   fundamentalRequiredHz: number;
+  /** Partials a bass note needs: rumble and handling noise rarely line up on several. */
+  lowNotePartials: number;
   /** Reject when even harmonics are this much stronger than odd ones: the octave above is sounding. */
   oddEvenDb: number;
   /** Reject when the octave below's odd partials are within this many dB of the note. */
@@ -38,7 +42,8 @@ export interface VerifierOptions {
 export const DEFAULT_VERIFIER_OPTIONS: VerifierOptions = {
   prominenceDb: 20,
   relativeDb: 20,
-  noiseGateDb: -Infinity,
+  chordRelativeDb: 3,
+  noiseGateDb: -50,
   ambientMarginDb: 50,
   ambientFrames: 120,
   riseDb: 6,
@@ -47,6 +52,7 @@ export const DEFAULT_VERIFIER_OPTIONS: VerifierOptions = {
   toleranceCents: 30,
   maxHz: 5000,
   fundamentalRequiredHz: 100,
+  lowNotePartials: 3,
   oddEvenDb: 15,
   subOctaveDb: 25,
   contrastDb: 10,
@@ -104,12 +110,19 @@ export class FftVerifier implements Detector {
     const { floor, max } = stats(db, binHz, this.options.maxHz);
     this.trackAmbient(max);
 
-    if (max < this.gate()) return { match: false, confidence: 0, heard: [] };
-    const ctx: FrameContext = { db, past, binHz, threshold: floor + this.options.prominenceDb, loudEnough: max - this.options.relativeDb };
+    if (max < this.gate()) return { match: false, confidence: 0, present: [], heard: [] };
+    const extra = Math.min(Math.max(expectedMidi.length - 1, 0), 3) * this.options.chordRelativeDb;
+    const ctx: FrameContext = { db, past, binHz, threshold: floor + this.options.prominenceDb, loudEnough: max - this.options.relativeDb - extra };
 
     let confidence = expectedMidi.length === 0 ? 0 : 1;
-    for (const midi of expectedMidi) confidence = Math.min(confidence, this.scoreNote(ctx, midi, expectedMidi));
-    return { match: expectedMidi.length > 0 && confidence >= 0.5, confidence, heard: this.heardNotes(ctx, candidates, expectedMidi) };
+    const present: number[] = [];
+    for (const midi of expectedMidi) {
+      const score = this.scoreNote(ctx, midi, expectedMidi);
+      confidence = Math.min(confidence, score);
+      if (score >= 0.5) present.push(midi);
+    }
+    const heard = this.heardNotes(ctx, candidates, expectedMidi);
+    return { match: expectedMidi.length > 0 && confidence >= 0.5, confidence, present, heard };
   }
 
   /** Clears note history. The ambient estimate is kept, since the room doesn't change between steps. */
@@ -134,12 +147,12 @@ export class FftVerifier implements Detector {
   /** Confidence (0..1) that `midi` was just struck; at least 0.5 counts as heard. */
   private scoreNote(ctx: FrameContext, midi: number, expectedMidi: readonly number[]): number {
     const { db, past, binHz, threshold, loudEnough } = ctx;
-    const now = this.noteLevel(db, binHz, threshold, midi);
+    const now = this.noteLevel(db, binHz, threshold, midi, expectedMidi.includes(midi + 12));
     let score = now.score;
     if (now.level < loudEnough) score = Math.min(score, 0.4);
     // Cheap checks first: the history comparison costs one pass per past frame.
     if (score < 0.5) return score;
-    const minPast = Math.min(...past.map((p) => this.noteLevel(p, binHz, -Infinity, midi).level));
+    const minPast = Math.min(...past.map((p) => this.noteLevel(p, binHz, -Infinity, midi, true).level));
     if (past.length > 0 && now.level - minPast < this.options.riseDb) score = Math.min(score, 0.4);
     if (!expectedMidi.includes(midi - 12) && this.subOctaveSounds(db, binHz, threshold, midi, now.level)) {
       score = Math.min(score, 0.4);
@@ -153,7 +166,7 @@ export class FftVerifier implements Detector {
     return struck.filter((m) => expectedMidi.includes(m) || !OVERTONE_INTERVALS.some((i) => struck.includes(m - i)));
   }
 
-  private noteLevel(db: Float32Array, binHz: number, threshold: number, midi: number): NoteLevel {
+  private noteLevel(db: Float32Array, binHz: number, threshold: number, midi: number, octaveExpected: boolean): NoteLevel {
     const { harmonics, maxHz, fundamentalRequiredHz } = this.options;
     const f0 = midiToFrequency(midi);
     let present = 0;
@@ -180,8 +193,9 @@ export class FftVerifier implements Detector {
       }
     }
     // Very high notes have only one or two harmonics in range, so a lone fundamental suffices.
-    const needed = checked <= 2 ? 1 : 2;
-    const octaveAbove = evenLevel - oddLevel > this.options.oddEvenDb;
+    const needed = checked <= 2 ? 1 : f0 < this.options.fundamentalRequiredHz ? this.options.lowNotePartials : 2;
+    // An expected note an octave up legitimately boosts the even partials.
+    const octaveAbove = !octaveExpected && evenLevel - oddLevel > this.options.oddEvenDb;
     // Smeared energy from a neighbouring note (attack transients, fast repeats) is not a note.
     const main = fundamental ? 1 : strongest;
     const semitone = 2 ** (1 / 12);

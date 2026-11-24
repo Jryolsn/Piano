@@ -96,3 +96,56 @@ describe('FftVerifier heard notes', () => {
     expect(heard([])).toEqual([]);
   });
 });
+
+describe('FftVerifier in a quiet room', () => {
+  const ALL = Array.from({ length: 88 }, (_, i) => 21 + i);
+  /** Deterministic broadband noise at a given amplitude, plus low rumble. */
+  function room(amp: number): Float32Array {
+    let seed = 7;
+    return Float32Array.from({ length: N }, (_, i) => {
+      seed = (seed * 16807) % 2147483647;
+      return amp * ((seed / 2147483647 - 0.5) + 2 * Math.sin((2 * Math.PI * 60 * i) / SR));
+    });
+  }
+
+  it('hears no notes in room noise, even without a learned ambient level', () => {
+    const v = new FftVerifier();
+    for (let i = 0; i < 20; i++) {
+      const r = v.detect(room(2e-4), SR, [60, 64], ALL);
+      expect(r.heard).toEqual([]);
+      expect(r.match).toBe(false);
+    }
+  });
+
+  it('hears a note played over room noise', () => {
+    const mix = tone([60]).map((x, i) => x + room(2e-4)[i]!);
+    expect(new FftVerifier().detect(mix, SR, [60], ALL).match).toBe(true);
+  });
+});
+
+describe('FftVerifier chords', () => {
+  const chord = [48, 60, 64, 67];
+
+  it('confirms every note of a four-note chord', () => {
+    const r = new FftVerifier().detect(tone(chord), SR, chord);
+    expect(r.match).toBe(true);
+    expect(r.present).toEqual(chord);
+  });
+
+  it('confirms a chord with an octave pair', () => {
+    expect(new FftVerifier().detect(tone([48, 60, 67, 72]), SR, [48, 60, 67, 72]).match).toBe(true);
+  });
+
+  it('confirms a chord when one note is played softly', () => {
+    const loud = tone(chord.slice(0, 3));
+    const quiet = tone([67]);
+    const soft = loud.map((x, i) => x + 0.12 * quiet[i]!);
+    expect(new FftVerifier().detect(soft, SR, chord).match).toBe(true);
+  });
+
+  it('reports which notes of an incomplete chord sound', () => {
+    const r = new FftVerifier().detect(tone([60, 64, 67]), SR, chord);
+    expect(r.match).toBe(false);
+    expect(r.present).toEqual([60, 64, 67]);
+  });
+});

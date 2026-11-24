@@ -3,6 +3,8 @@ export interface DetectionResult {
   match: boolean;
   /** 0..1 */
   confidence: number;
+  /** Expected notes that sound in this frame, even if the others don't. */
+  present?: readonly number[];
   /** Candidate notes that sounded in this frame, whether expected or not. */
   heard?: readonly number[];
 }
