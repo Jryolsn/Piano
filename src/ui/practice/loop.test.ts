@@ -4,8 +4,6 @@ import {
   dragLoopFrom,
   dragLoopTo,
   MIN_LOOP_SECONDS,
-  setLoopFrom,
-  setLoopTo,
   startLoop,
 } from './loop';
 
@@ -21,24 +19,7 @@ describe('startLoop', () => {
   });
 });
 
-describe('setLoopFrom / setLoopTo', () => {
-  it('keeps the other end when the loop stays long enough', () => {
-    expect(setLoopFrom({ from: 5, to: 30 }, 10, D)).toEqual({ from: 10, to: 30 });
-    expect(setLoopTo({ from: 5, to: 30 }, 20, D)).toEqual({ from: 5, to: 20 });
-  });
-
-  it('pushes or pulls the other end to keep the minimum length', () => {
-    expect(setLoopFrom({ from: 5, to: 30 }, 29, D)).toEqual({ from: 29, to: 31 });
-    expect(setLoopTo({ from: 5, to: 30 }, 6, D)).toEqual({ from: 4, to: 6 });
-  });
-
-  it('makes a loop ending here when there is none', () => {
-    expect(setLoopTo(null, 30, D)).toEqual({ from: 20, to: 30 });
-    expect(setLoopTo(null, 3, D)).toEqual({ from: 0, to: 3 });
-  });
-});
-
-describe('dragging handles', () => {
+describe('dragging pins', () => {
   const loop = { from: 10, to: 20 };
 
   it('moves freely within limits', () => {

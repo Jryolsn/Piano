@@ -1,22 +1,20 @@
 <script lang="ts">
-  import { MAX_TEMPO, MIN_TEMPO, type LoopRange } from '../../engine/practice';
-  import { formatTime, LOOKAHEAD_RANGE, songModes, type HandChoice, type PracticeSettings } from './settings';
+  import { MAX_TEMPO, MIN_TEMPO } from '../../engine/practice';
+  import Icon, { type IconName } from '../Icon.svelte';
+  import { LOOKAHEAD_RANGE, songModes, type HandChoice, type PracticeSettings } from './settings';
 
   interface Props {
     settings: PracticeSettings;
-    loop: LoopRange | null;
-    onLoopOn: () => void;
-    onSetLoopStart: () => void;
-    onSetLoopEnd: () => void;
-    onClearLoop: () => void;
+    looping: boolean;
+    onToggleLoop: () => void;
   }
 
-  let { settings = $bindable(), loop, onLoopOn, onSetLoopStart, onSetLoopEnd, onClearLoop }: Props = $props();
+  let { settings = $bindable(), looping, onToggleLoop }: Props = $props();
 
-  const hands: { value: HandChoice; label: string }[] = [
-    { value: 'left', label: 'Vänster' },
-    { value: 'both', label: 'Båda' },
-    { value: 'right', label: 'Höger' },
+  const hands: { value: HandChoice; label: string; icon: IconName }[] = [
+    { value: 'left', label: 'Vänster hand', icon: 'hand-left' },
+    { value: 'both', label: 'Båda händerna', icon: 'hand-both' },
+    { value: 'right', label: 'Höger hand', icon: 'hand-right' },
   ];
 </script>
 
@@ -34,7 +32,16 @@
     <legend>Hand</legend>
     <div class="segmented">
       {#each hands as h (h.value)}
-        <button class:on={settings.hand === h.value} onclick={() => (settings.hand = h.value)}>{h.label}</button>
+        <button
+          class="icon"
+          class:on={settings.hand === h.value}
+          aria-label={h.label}
+          title={h.label}
+          aria-pressed={settings.hand === h.value}
+          onclick={() => (settings.hand = h.value)}
+        >
+          <Icon name={h.icon} />
+        </button>
       {/each}
     </div>
   </fieldset>
@@ -55,20 +62,13 @@
     />
   </label>
 
-  <fieldset>
-    <legend>Upprepa ett avsnitt {#if loop}<output>{formatTime(loop.from)}–{formatTime(loop.to)}</output>{/if}</legend>
-    <div class="segmented">
-      <button class:on={!loop} onclick={onClearLoop}>Av</button>
-      <button class:on={!!loop} onclick={() => !loop && onLoopOn()}>På</button>
-    </div>
-    {#if loop}
-      <div class="segmented more">
-        <button onclick={onSetLoopStart}>Start här</button>
-        <button onclick={onSetLoopEnd}>Slut här</button>
-      </div>
-      <p class="hint">Dra i de orange handtagen i tidslisten för att justera.</p>
-    {/if}
-  </fieldset>
+  <button class="loop" class:on={looping} aria-pressed={looping} onclick={onToggleLoop}>
+    <Icon name="loop" />
+    <span>Upprepa ett avsnitt</span>
+  </button>
+  {#if looping}
+    <p class="hint">Dra i pinnarna högst upp för att välja start och slut.</p>
+  {/if}
 </div>
 
 <style>
@@ -126,11 +126,35 @@
     background: #5b9bd5;
     color: #10131a;
   }
-  .more {
-    margin-top: 4px;
+  .segmented button.icon {
+    display: grid;
+    place-items: center;
+    background: #2a2e37;
+    color: inherit;
+  }
+  .segmented button.icon.on {
+    background: #3a404c;
+    box-shadow: inset 0 0 0 2px #d8d6d1;
+  }
+  .loop {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 48px;
+    padding: 6px 14px;
+    border: 0;
+    border-radius: 8px;
+    background: #2a2e37;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+  .loop.on {
+    background: #e8a94a;
+    color: #10131a;
   }
   .hint {
-    margin: 8px 0 0;
+    margin: -6px 0 0;
     font-size: 13px;
     color: #9c9a95;
   }

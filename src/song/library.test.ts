@@ -1,6 +1,6 @@
 import { Midi } from '@tonejs/midi';
 import { describe, expect, it } from 'vitest';
-import { builtinEntries, importedEntries, importMidiFile, type SongStorage, type StoredSong } from './library';
+import { builtinEntries, importedEntries, importMidiFile, renameImported, type SongStorage, type StoredSong } from './library';
 import { MidiImportError } from './midi';
 
 function memoryStorage(): SongStorage {
@@ -39,5 +39,21 @@ describe('library', () => {
       importMidiFile(storage, { name: 'bad.mid', data: new ArrayBuffer(4) }),
     ).rejects.toBeInstanceOf(MidiImportError);
     expect(await storage.getAll()).toEqual([]);
+  });
+
+  it('renames an imported song and keeps it after reload', async () => {
+    const storage = memoryStorage();
+    await importMidiFile(storage, { name: 'old.mid', data: midiFile() }, 1, 'a');
+    const renamed = await renameImported(storage, 'a', '  Min låt  ');
+    expect(renamed).toMatchObject({ id: 'a', title: 'Min låt', source: 'imported' });
+    expect((await importedEntries(storage)).map((e) => e.title)).toEqual(['Min låt']);
+  });
+
+  it('ignores a blank name or an unknown song', async () => {
+    const storage = memoryStorage();
+    await importMidiFile(storage, { name: 'old.mid', data: midiFile() }, 1, 'a');
+    expect(await renameImported(storage, 'a', '   ')).toBeUndefined();
+    expect(await renameImported(storage, 'zzz', 'Ny')).toBeUndefined();
+    expect((await importedEntries(storage)).map((e) => e.title)).toEqual(['old']);
   });
 });

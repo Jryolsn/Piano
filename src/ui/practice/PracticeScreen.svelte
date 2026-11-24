@@ -14,7 +14,8 @@
   import ModePicker from './ModePicker.svelte';
   import SettingsPanel from './SettingsPanel.svelte';
   import ProgressBar from './ProgressBar.svelte';
-  import { setLoopFrom, setLoopTo, startLoop } from './loop';
+  import Icon from '../Icon.svelte';
+  import { startLoop } from './loop';
   import {
     defaultSettings,
     engineModeFor,
@@ -91,6 +92,7 @@
       time: s.time,
       lookahead: untrack(() => settings.lookahead),
       hands: s.options.hands,
+      loop: s.options.loop,
       expected: s.waiting ? s.expected() : undefined,
       pressed: untrack(() => (performance.now() < heardUntil ? [...pressed, ...heardKeys] : pressed)),
       judged: untrack(() => usesMic(settings.mode)),
@@ -109,6 +111,8 @@
     hitUntil = performance.now() + HIT_FLASH_MS;
   }
 
+  /** While the song runs only the notes, keys and a slim progress bar are shown. */
+  const shown = $derived(playing || resumeAfterScrub);
   const atStart = $derived(time === 0);
   const ended = $derived(!playing && time >= song.duration);
   const summary = $derived(ended ? session.summary() : null);
@@ -254,24 +258,33 @@
     onScrub={scrub}
   />
 
-  {#if playing || resumeAfterScrub}
-    <!-- While playing only the notes and keys are shown; tap anywhere above the keys to pause. -->
-    <div class="corner">
-      <button class="round faint" onclick={openSettings} aria-label="Inställningar">⚙</button>
-    </div>
-  {:else}
-    <div class="bar">
-      {#if onExit}
-        <button class="round" onclick={onExit} aria-label="Tillbaka">‹</button>
-      {/if}
-      <span class="time">{formatTime(time)}</span>
-      <ProgressBar {time} duration={song.duration} {loop} onSeek={seek} onLoopChange={(l) => (loop = l)} />
-      <span class="time">{formatTime(song.duration)}</span>
-      <button class="round" class:on={panelOpen} onclick={() => (panelOpen ? (panelOpen = false) : openSettings())} aria-label="Inställningar">
-        ⚙
-      </button>
-    </div>
+  <div class="top">
+    <ProgressBar
+      {time}
+      duration={song.duration}
+      {loop}
+      interactive={!shown}
+      onSeek={seek}
+      onLoopChange={(l) => (loop = l)}
+    />
+    {#if !shown}
+      <div class="controls">
+        {#if onExit}
+          <button class="round" onclick={onExit} aria-label="Tillbaka"><Icon name="back" /></button>
+        {/if}
+        {#if !atStart && !ended}
+          <button class="round go" onclick={togglePlay} aria-label="Spela"><Icon name="play" /></button>
+        {/if}
+        <span class="time">{formatTime(time)} / {formatTime(song.duration)}</span>
+        <span class="spacer"></span>
+        <button class="round" class:on={panelOpen} onclick={() => (panelOpen ? (panelOpen = false) : openSettings())} aria-label="Inställningar">
+          <Icon name="settings" />
+        </button>
+      </div>
+    {/if}
+  </div>
 
+  {#if !shown}
     {#if ended}
       <div class="center">
         <p class="title">{summary && summary.hit + summary.missed > 0 && settings.mode === 'along'
@@ -289,19 +302,18 @@
         {#if mic === 'error'}<p class="note">Mikrofonen gick inte att starta. Låten spelas utan att lyssna.</p>{/if}
       </div>
     {:else}
-      <button class="play" onclick={togglePlay} aria-label="Spela">▶</button>
-      <p class="title below">{song.title}</p>
+      <div class="center passive">
+        <p class="title">{song.title}</p>
+        <p class="hint">Tryck på brädet för att fortsätta</p>
+      </div>
     {/if}
 
     {#if panelOpen}
       <div class="panel">
         <SettingsPanel
           bind:settings
-          {loop}
-          onLoopOn={() => (loop = startLoop(time, song.duration))}
-          onSetLoopStart={() => (loop = setLoopFrom(loop, time, song.duration))}
-          onSetLoopEnd={() => (loop = setLoopTo(loop, time, song.duration))}
-          onClearLoop={() => (loop = null)}
+          looping={!!loop}
+          onToggleLoop={() => (loop = loop ? null : startLoop(time, song.duration))}
         />
       </div>
     {/if}
@@ -319,60 +331,41 @@
     user-select: none;
     -webkit-user-select: none;
   }
-  .bar {
+  .top {
     position: absolute;
-    top: max(10px, env(safe-area-inset-top));
-    left: max(10px, env(safe-area-inset-left));
-    right: max(10px, env(safe-area-inset-right));
+    top: max(8px, env(safe-area-inset-top));
+    left: max(24px, env(safe-area-inset-left));
+    right: max(24px, env(safe-area-inset-right));
+  }
+  .controls {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 6px;
-    border-radius: 16px;
-    background: rgba(28, 31, 38, 0.85);
-    font-size: 15px;
+    gap: 10px;
+    margin-top: 6px;
+  }
+  .spacer {
+    flex: 1;
   }
   .round {
     flex: none;
-    width: 52px;
-    height: 52px;
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    padding: 0;
     border: 0;
     border-radius: 50%;
-    background: #2a2e37;
+    background: rgba(42, 46, 55, 0.9);
     color: inherit;
-    font-size: 22px;
     cursor: pointer;
   }
   .round.on {
     background: #3d5f80;
   }
-  .corner {
-    position: absolute;
-    top: max(10px, env(safe-area-inset-top));
-    right: max(10px, env(safe-area-inset-right));
-    display: flex;
-    gap: 10px;
-  }
-  .faint {
-    font-size: 16px;
-    background: rgba(42, 46, 55, 0.6);
-    opacity: 0.5;
-  }
-  .play {
-    position: absolute;
-    left: 50%;
-    top: 42%;
-    transform: translate(-50%, -50%);
-    width: 96px;
-    height: 96px;
-    padding-left: 8px;
-    border: 0;
-    border-radius: 50%;
+  .round.go {
+    padding-left: 2px;
     background: #5b9bd5;
     color: #10131a;
-    font-size: 40px;
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
-    cursor: pointer;
   }
   .title {
     margin: 0;
@@ -385,12 +378,6 @@
     text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
     pointer-events: none;
   }
-  .title.below {
-    position: absolute;
-    left: 50%;
-    top: calc(42% + 64px);
-    transform: translateX(-50%);
-  }
   .center {
     position: absolute;
     left: 50%;
@@ -401,6 +388,10 @@
     gap: 14px;
     width: min(560px, calc(100vw - 32px));
   }
+  /* Lets taps through to the board, which resumes the song. */
+  .center.passive {
+    pointer-events: none;
+  }
   .note {
     margin: 0;
     font-size: 14px;
@@ -408,15 +399,22 @@
     text-align: center;
   }
   .time {
-    flex: none;
     font-variant-numeric: tabular-nums;
     color: #9c9a95;
+    font-size: 15px;
+  }
+  .hint {
+    margin: 0;
+    font-size: 14px;
+    color: #8d8b86;
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+    pointer-events: none;
   }
   .panel {
     position: absolute;
-    top: calc(max(10px, env(safe-area-inset-top)) + 72px);
+    top: calc(max(8px, env(safe-area-inset-top)) + 100px);
     right: max(10px, env(safe-area-inset-right));
-    max-height: calc(100% - 92px);
+    max-height: calc(100% - 120px);
     overflow-y: auto;
     border-radius: 14px;
   }

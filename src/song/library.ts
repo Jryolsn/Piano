@@ -55,6 +55,20 @@ export async function importMidiFile(
   return toEntry(stored);
 }
 
+/** Longest name a song can get. */
+export const MAX_TITLE_LENGTH = 60;
+
+/** Renames an imported song. Returns the updated entry, or undefined when the name is blank or the song is gone. */
+export async function renameImported(storage: SongStorage, id: string, title: string): Promise<LibraryEntry | undefined> {
+  const name = title.trim().slice(0, MAX_TITLE_LENGTH);
+  if (!name) return undefined;
+  const stored = (await storage.getAll()).find((s) => s.id === id);
+  if (!stored) return undefined;
+  const renamed: StoredSong = { ...stored, song: { ...stored.song, title: name } };
+  await storage.put(renamed);
+  return toEntry(renamed);
+}
+
 function toEntry(s: StoredSong): LibraryEntry {
   return { id: s.id, title: s.song.title, source: 'imported', song: s.song };
 }

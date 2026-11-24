@@ -1,19 +1,22 @@
 <script lang="ts">
   import type { LoopRange } from '../../engine/practice';
   import { dragLoopFrom, dragLoopTo } from './loop';
+  import { formatTime } from './settings';
 
   interface Props {
     time: number;
     duration: number;
     loop: LoopRange | null;
+    /** While the song plays the bar only shows progress; paused it can be dragged. */
+    interactive: boolean;
     onSeek: (seconds: number) => void;
     onLoopChange: (loop: LoopRange) => void;
   }
 
-  let { time, duration, loop, onSeek, onLoopChange }: Props = $props();
+  let { time, duration, loop, interactive, onSeek, onLoopChange }: Props = $props();
 
   let track: HTMLDivElement;
-  /** What the active pointer drags: the position or a loop handle. */
+  /** What the active pointer drags: the position or a loop pin. */
   let dragging: 'seek' | 'from' | 'to' | null = null;
 
   const pct = (t: number) => (duration > 0 ? (t / duration) * 100 : 0);
@@ -54,9 +57,10 @@
 
 <div
   class="progress"
+  class:interactive
   bind:this={track}
   role="slider"
-  tabindex="0"
+  tabindex={interactive ? 0 : -1}
   aria-label="Position i låten"
   aria-valuemin={0}
   aria-valuemax={duration}
@@ -68,64 +72,50 @@
   onkeydown={key}
 >
   <div class="rail"></div>
-  {#if loop}
-    <div class="range" style:left="{pct(loop.from)}%" style:width="{pct(loop.to - loop.from)}%"></div>
-  {/if}
   <div class="fill" style:width="{pct(time)}%"></div>
   <div class="thumb" style:left="{pct(time)}%"></div>
   {#if loop}
-    <div
-      class="handle from"
-      style:left="{pct(loop.from)}%"
-      role="slider"
-      tabindex="-1"
-      aria-label="Loopens start"
-      aria-valuenow={loop.from}
-      onpointerdown={(e) => down(e, 'from')}
-    ></div>
-    <div
-      class="handle to"
-      style:left="{pct(loop.to)}%"
-      role="slider"
-      tabindex="-1"
-      aria-label="Loopens slut"
-      aria-valuenow={loop.to}
-      onpointerdown={(e) => down(e, 'to')}
-    ></div>
+    {#each [{ id: 'from', at: loop.from, name: 'Loopens start' }, { id: 'to', at: loop.to, name: 'Loopens slut' }] as pin (pin.id)}
+      <div
+        class="pin"
+        style:left="{pct(pin.at)}%"
+        role="slider"
+        tabindex="-1"
+        aria-label={pin.name}
+        aria-valuenow={pin.at}
+        onpointerdown={(e) => down(e, pin.id as 'from' | 'to')}
+      >
+        <span class="label">{formatTime(pin.at)}</span>
+        <span class="stick"></span>
+      </div>
+    {/each}
   {/if}
 </div>
 
 <style>
   .progress {
     position: relative;
-    flex: 1;
-    min-width: 0;
-    height: 52px;
-    margin: 0 12px;
+    height: 36px;
+    pointer-events: none;
     touch-action: none;
-    cursor: pointer;
     outline: none;
   }
+  .progress.interactive {
+    pointer-events: auto;
+    cursor: pointer;
+  }
   .rail,
-  .range,
   .fill {
     position: absolute;
-    top: 50%;
-    height: 8px;
-    margin-top: -4px;
-    border-radius: 4px;
-    pointer-events: none;
+    top: 26px;
+    height: 4px;
+    margin-top: -2px;
+    border-radius: 2px;
   }
   .rail {
     left: 0;
     right: 0;
-    background: #2a2e37;
-  }
-  .range {
-    height: 20px;
-    margin-top: -10px;
-    border-radius: 6px;
-    background: rgba(232, 169, 74, 0.28);
+    background: rgba(255, 255, 255, 0.14);
   }
   .fill {
     left: 0;
@@ -133,43 +123,46 @@
   }
   .thumb {
     position: absolute;
-    top: 50%;
-    width: 16px;
-    height: 16px;
-    margin: -8px 0 0 -8px;
+    top: 26px;
+    width: 12px;
+    height: 12px;
+    margin: -6px 0 0 -6px;
     border-radius: 50%;
     background: #d8d6d1;
-    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .interactive .thumb {
+    opacity: 1;
   }
   .progress:focus-visible .thumb {
     outline: 2px solid #5b9bd5;
   }
-  /* Bracket-shaped handles sit outside the range, so they never overlap; the transparent edge widens the touch target. */
-  .handle {
-    position: absolute;
-    top: 4px;
-    bottom: 4px;
-    width: 28px;
-    cursor: ew-resize;
-    touch-action: none;
-  }
-  .handle::before {
-    content: '';
+  /* A thin pin with its time on top; the wide transparent box makes it easy to grab. */
+  .pin {
     position: absolute;
     top: 0;
     bottom: 0;
-    width: 10px;
+    width: 40px;
+    margin-left: -20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: ew-resize;
+    touch-action: none;
+  }
+  .interactive .pin {
+    pointer-events: auto;
+  }
+  .label {
+    font: 600 11px/14px system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
+    color: #e8a94a;
+  }
+  .stick {
+    flex: 1;
+    width: 3px;
+    border-radius: 2px;
     background: #e8a94a;
-  }
-  .handle.from {
-    margin-left: -28px;
-  }
-  .handle.from::before {
-    right: 0;
-    border-radius: 6px 0 0 6px;
-  }
-  .handle.to::before {
-    left: 0;
-    border-radius: 0 6px 6px 0;
   }
 </style>
